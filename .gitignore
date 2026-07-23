@@ -1,0 +1,71 @@
+# Environment & Secrets
+.env
+.env.local
+.env.production
+*.key
+*.pem
+secrets/
+
+# Session files (personal conversations — not for public)
+session-*.md
+
+# Personal task tracking
+.LOCK/TODO.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+.cache/
+*.tsbuildinfo
+
+# ONNX Models (too large for git)
+models/
+*.onnx
+*.bin
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Catalyst
+.catalyst/
+catalyst-debug.log
+
+# Data (generated, not committed)
+data/synthetic/*.csv
+data/synthetic/*.parquet
+data/synthetic/*.json
+!data/synthetic/README.md
+
+# Neo4j
+appsail/neo4j/data/
+appsail/neo4j/logs/
+
+# Reports / Generated PDFs
+reports/*.pdf
+
+# Logs
+*.log
+logs/
