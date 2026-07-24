@@ -36,7 +36,7 @@
 │  │  └────────────┘ └────────────┘ └────────────┘ └───────────────────┘    │    │
 │  └─────────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
-                                       │ REST + SSE (streaming)
+                                       │ REST capability/resource APIs + SSE
 ┌──────────────────────────────────────▼──────────────────────────────────────────┐
 │                              API LAYER                                            │
 │                                                                                  │
@@ -159,7 +159,7 @@
 
 | Category | Count | Purpose | Trigger |
 |----------|-------|---------|---------|
-| API Endpoints | 12 | REST handlers for frontend | HTTP (API Gateway) |
+| API/BFF Endpoints | 12 | Capability and resource REST handlers; SSE run streams | HTTP (API Gateway) |
 | Agent Nodes | 8 | LangGraph state machine nodes | Internal invocation |
 | Intelligence Jobs | 6 | Pre-computation engines | Cron (scheduled) |
 | Signal Handlers | 7 | Event-driven processors | Signals (data events) |
@@ -990,7 +990,7 @@ ksp-investigate-ai/
 │                         └──────┬───────┘                                     │
 │                                │                                             │
 │                    ┌───────────┴───────────┐                                 │
-│                    │ REST          SSE     │                                  │
+│                    │ REST capability/resource APIs + SSE │                                  │
 │                    ▼                ▼      │                                  │
 │           ┌──────────────┐  ┌──────────────┐                                │
 │           │  API Calls   │  │   Streaming  │                                │
@@ -1024,7 +1024,11 @@ ksp-investigate-ai/
 
 ### Detailed Integration Specifications
 
-#### 1. Frontend ↔ Backend (REST + SSE)
+#### 1. Frontend ↔ Capability API / BFF (REST + SSE + Multipart)
+
+The external boundary uses Catalyst API Gateway for authentication, RBAC, throttling, and routing. REST APIs are capability-oriented for investigation actions and resource-oriented for workspace state. Complex investigations create a run with REST and stream progress through SSE; simple lookups may return synchronously. Voice and document inputs use multipart REST.
+
+The LangGraph engine and its internal typed Python Tool Registry are not exposed as public REST endpoints. Agents call typed tools directly; tools enforce authorization context, schemas, query limits, citations, and audit events. WebSockets are deferred until collaborative editing or presence is required. gRPC is reserved for a future split into independent internal services, and MCP is an optional interoperability adapter rather than a runtime dependency.
 
 | Aspect | Detail |
 |--------|--------|

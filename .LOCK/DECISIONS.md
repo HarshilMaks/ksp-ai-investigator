@@ -128,7 +128,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 - Framework: React 18 + TypeScript + Vite
 - Hosting: Catalyst Slate (Web Client Hosting)
 - State: Zustand (client) + LangGraph Checkpointer (server persistence)
-- Real-time: SSE for LLM streaming + Catalyst Signals → WebSocket for alerts
+- Real-time: SSE for AI/progress/alert streams; WebSocket is deferred until multi-investigator collaboration is required
 - Visualization: Cytoscape.js (graphs), ECharts (Sankey/heatmaps/timelines), MapLibre GL (maps), Deck.gl H3 (hexagons)
 - Cost: $0
 
@@ -144,29 +144,52 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 ---
 
-## 13. CONNECTION ARCHITECTURE
+## 13. API & CONNECTION ARCHITECTURE — FINAL HYBRID DECISION
+
+### External communication
+
+- **Catalyst API Gateway** is the public entry point for authentication, RBAC, throttling, and routing.
+- **Capability-oriented REST APIs** expose investigation actions rather than database tables:
+  - `POST /api/v1/investigations/{id}/query`
+  - `POST /api/v1/investigations/{id}/network-analysis`
+  - `POST /api/v1/investigations/{id}/profile-offender`
+  - `POST /api/v1/investigations/{id}/similar-cases`
+  - `POST /api/v1/investigations/{id}/hypothesis`
+  - `POST /api/v1/investigations/{id}/generate-report`
+- **Resource REST APIs** remain available for workspace state: investigations, evidence, timeline, notes, and reports.
+- **SSE** streams investigation plans, tool progress, evidence cards, reasoning, tokens, alerts, and completion events.
+- **Multipart REST** handles voice/audio uploads and document uploads.
+- Complex investigations use `POST` to create a run, followed by an SSE stream. Simple lookups may return synchronously.
+
+### Internal AI communication
+
+- The LangGraph Investigation Engine communicates with an **internal typed Python Tool Registry** through direct calls in the same runtime for low latency and strong schemas.
+- Tools invoke the Data Store, pgvector, Neo4j Bolt, ONNX models, Stratus, and intelligence cards. Agents do not access databases directly.
+- Catalyst Signals carry backend data-change events; Cron and Circuits run scheduled and multi-step workflows.
+- **gRPC is reserved for a future split into independent internal services** and is not used in the initial Catalyst deployment.
+- **MCP is an optional interoperability adapter** over the typed registry; it is not a runtime dependency and is not exposed directly to investigators.
+- WebSockets are deferred until collaborative multi-investigator editing or presence is required.
 
 ```
 Browser (React/Slate)
-    │ REST + SSE
+    │ REST capability/resource APIs + SSE + Multipart
     ▼
 Catalyst API Gateway (Auth + RBAC + Rate Limit)
     │
     ▼
-Catalyst Functions (Python 3.11)
-    ├─► LangGraph Orchestrator
+Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
+    ├─► LangGraph Investigation Engine
+    │       ├─► Planner + typed internal Tool Registry
     │       ├─► Groq/Gemini/Mistral (OpenAI SDK, LiteLLM router)
     │       ├─► Catalyst Data Store (SQL + pgvector)
     │       ├─► Neo4j on AppSail (Bolt protocol, port 7687)
-    │       ├─► BGE-M3 ONNX (in-process embedding)
-    │       ├─► BGE-Reranker ONNX (in-process reranking)
-    │       ├─► IndicTrans2 ONNX (in-process translation)
-    │       ├─► Faster-Whisper (in-process STT)
-    │       ├─► Piper ONNX (in-process TTS)
+    │       ├─► BGE-M3 / reranker / IndicTrans2 ONNX models
+    │       ├─► Faster-Whisper and Piper for voice
     │       └─► Stratus (pre-computed intelligence JSONs)
     │
+    ├─► SSE event stream back to the workspace
     ├─► Catalyst Circuits (background workflows)
-    ├─► Catalyst Signals (event bus)
+    ├─► Catalyst Signals (data-change event bus)
     ├─► Catalyst Cron (scheduled jobs)
     └─► Catalyst Cache (Redis — hot data)
 ```

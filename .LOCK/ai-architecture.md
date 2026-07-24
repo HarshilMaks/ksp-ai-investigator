@@ -124,6 +124,58 @@ async def stream_investigation_response(query: str, session_id: str):
 
 ---
 
+## API and Internal AI Communication Contract
+
+The system deliberately separates external application communication from internal AI communication.
+
+### External boundary
+
+- Catalyst API Gateway is the public entry point for authentication, RBAC, throttling, and routing.
+- The frontend uses capability-oriented REST APIs for investigation actions and resource REST APIs for workspace state.
+- Complex investigations use REST to create a run and SSE to stream plan, tool progress, evidence, reasoning, tokens, alerts, and completion.
+- Simple lookups may return synchronously through REST.
+- Voice and document inputs use multipart REST.
+- WebSockets are deferred until collaborative multi-investigator editing or presence is required.
+
+### Internal AI boundary
+
+- LangGraph is the orchestrator and calls a typed Python Tool Registry directly.
+- Tools, not agents, access the Data Store, pgvector, Neo4j, ONNX models, Stratus, and intelligence cards.
+- Tool inputs and outputs are Pydantic models with authorization context, query limits, citations, and audit metadata.
+- gRPC is reserved for a future split into independent internal services; it is not part of the initial Catalyst deployment.
+- MCP is an optional adapter for interoperability with external agent clients; it is not required for runtime orchestration.
+
+### Capability API examples
+
+```http
+POST /api/v1/investigations/{id}/query
+POST /api/v1/investigations/{id}/network-analysis
+POST /api/v1/investigations/{id}/profile-offender
+POST /api/v1/investigations/{id}/similar-cases
+POST /api/v1/investigations/{id}/hypothesis
+POST /api/v1/investigations/{id}/generate-report
+```
+
+### Internal execution path
+
+```text
+Frontend
+  ↓ REST capability/resource API
+Catalyst API Gateway
+  ↓
+Capability API / BFF
+  ↓
+LangGraph Investigation Engine
+  ↓ direct typed calls
+Internal Tool Registry
+  ↓
+SQL + pgvector + Neo4j + intelligence cards + LLM services
+  ↓
+SSE event stream back to the workspace
+```
+
+---
+
 ## Retrieval Strategy (4-Way Hybrid)
 
 ### Architecture Overview
@@ -574,9 +626,9 @@ Implementation:
 │                        KSP InvestigateAI                            │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
-│  ┌─────────────┐    ┌──────────────┐    ┌───────────────────────┐  │
-│  │   Frontend   │◄──►│  SSE Stream  │◄──►│   LiteLLM Router      │  │
-│  │  (Next.js)   │    │   Gateway    │    │  (Groq→Gemini→...→OR) │  │
+│  ┌─────────────┐    ┌────────────────┐    ┌───────────────────────┐  │
+│  │   Frontend   │───►│ Catalyst API   │───►│ LangGraph + Tool      │  │
+│  │  (React/Slate)│◄──│ Gateway + SSE  │◄──│ Registry + LiteLLM    │  │
 │  └─────────────┘    └──────────────┘    └───────────┬───────────┘  │
 │                                                      │              │
 │  ┌───────────────────────────────────────────────────┼───────────┐  │
