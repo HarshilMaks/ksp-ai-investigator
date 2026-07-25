@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P04`
+> Current phase: `P05`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -162,7 +162,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P05 — Neo4j projection and graph schema
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P04`
 - **Owner scope:** graph projection, constraints, indexes, local AppSail container
 - **Tasks:** implement idempotent Catalyst-authoritative-to-Neo4j projection; add labels, relationship properties, constraints, indexes, bounded traversal helpers; add AppSail Docker configuration with port `7687`, production HTTP restriction, memory settings, health check, and backup/export boundary.
@@ -396,7 +396,18 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Review-gate evidence:** Entity vocabulary contains exactly the 15 database-schema entity types; relationship vocabulary contains exactly 20 locked relationship types; card vocabulary contains the 5 logical card types; confidence/strength/vector/evidence/verification/card-subject constraints are tested; CCTNS FIR and station formats are tested; optional `IMEI`, `Evidence`, and `District` extensions are rejected until schema review; all model field sets map to known logical table fields; Catalyst deployment remains explicitly unvalidated; all generated narratives are marked synthetic and no real data is used.
 - **Known blockers:** PostgreSQL extensions, triggers, partial indexes, expression keys, Catalyst schema syntax, and persistence remain intentionally unvalidated/deferred. P05 graph projection has not started.
 
-### Review records: P05–P20
+### Review record: P05 — Neo4j projection and graph schema
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-25T18:41:24Z
+- **Completed:** 2026-07-25T18:46:57Z
+- **Implementation evidence:** Added deterministic ID-keyed projection and bounded graph queries in `src/engines/graph_intelligence.py`; graph compatibility mapping from logical `DigitalEvidence` to the graph-boundary `Evidence` label; relationship evidence FIR IDs, discovery metadata, strength, verification, and verifier/timestamp properties; fixed-query health probe; pinned Neo4j `5.26.0-community` AppSail assets; loopback-only HTTP/Browser binding; Bolt configuration; memory settings; idempotent constraints/indexes; locked relationship vocabulary; health, schema initialization, and local backup/export scripts; and graph integration tests.
+- **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **37 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; targeted graph validation ran 8 tests with `OK`; `p05_asset_contract: passed`; final `p05_phase_boundary_contracts: passed`; `git diff --check` passed; `.LOCK/TODO.md` and `session-ses_0754.md` each passed individual `git check-ignore` assertions.
+- **Review-gate evidence:** Projection replay is idempotent; traversal depth is bounded to `0..5`; relationship filters accept only the locked 20 relationship types; shortest paths return relationship citations; disabled-by-default Neo4j health returns unavailable without an injected driver; schema assets contain the locked labels/vocabulary and idempotent `IF NOT EXISTS` DDL; Bolt remains `7687`; HTTP remains loopback-only on `7474`; `7474` is not exposed by Docker; credentials are consumed only by operator scripts; and no arbitrary Cypher or public Browser route was added.
+- **Deployment evidence:** Docker container smoke execution could not run because Docker Desktop integration is unavailable in the WSL 2 distro (`The command 'docker' could not be found in this WSL 2 distro`). Static Dockerfile/config/schema assertions and all projection tests passed as the required alternative validation path.
+- **Known blockers:** Actual Neo4j driver wiring, Catalyst persistence, and live container schema execution remain intentionally deferred to the later integration/runtime phases; no deployment or performance claim is made.
+
+### Review records: P06–P20
 
 - **Status:** `PLANNED`
 - **Evidence:** not started
