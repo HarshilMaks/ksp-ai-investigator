@@ -1,7 +1,40 @@
-# KSP INVESTIGATEAI — MASTER ARCHITECTURE DECISIONS
+# KSP INVESTIGATEAI — CRIME INTELLIGENCE OPERATING SYSTEM
 
-> 🔒 LOCKED — All decisions final. No options. No debates. Best-in-class selected.
-> Date: 2026-07-23 | Constraint: $0 + Zoho Catalyst ($250 credits) + Open Source
+> 🔒 LOCKED — All decisions final. Selected implementation baseline. Performance, capacity, cost, and quality figures are targets or estimates pending benchmark/validation.
+> Date: 2026-07-24 | Constraint: $0 + Zoho Catalyst ($250 credits) + Open Source
+> Product positioning: **Crime Intelligence Operating System** — not a chatbot, not a dashboard.
+> Core principle: **AI interprets intent and explains evidence. Deterministic engines compute facts. Humans review consequential conclusions.**
+
+---
+
+## 0. PRODUCT-LEVEL ARCHITECTURE (NEW)
+
+### The product is investigations, not conversations
+
+```text
+Other teams: Question → Answer → Done
+This product: Investigation → Question → Evidence → Updated Investigation → Next Question → ...
+```
+
+### Key product decisions
+
+| Decision | Choice |
+|----------|--------|
+| Product unit | Persistent Investigation (with lifecycle: active/suspended/closed/archived) |
+| Workspace | 7-panel: Conversation, Evidence Board, Timeline, Network Graph, Leads, Hypotheses, Intelligence Cards |
+| Output type | Structured artifacts (cards, timelines, graphs, leads, reports) over text responses |
+| Intelligence model | Proactive: system discovers and alerts without being asked |
+| Hypothesis system | Structured for/against/missing evidence evaluation with officer control |
+| Entity resolution | Fuzzy/exact/phonetic/contextual matching with officer-approved merges |
+| Case memory | Full session persistence: evidence, hypotheses, annotations, leads, graph state |
+| Intelligence cards | 15 precomputed card types that become the UI layer |
+| Demo scenarios | 10 end-to-end investigations that serve as integration tests and demo script |
+
+### New documents added
+
+- `investigation-workspace.md` — the product heart
+- `intelligence-cards.md` — 15 card types (the precomputed intelligence layer)
+- `investigation-scenarios.md` — 10 investigation stories with full traces and demo script
 
 ---
 
@@ -20,7 +53,7 @@
 | Stratus | $0.02/GB (credits) | Intelligence JSONs, data, reports |
 | Circuits/Signals/Cron | Included | Workflows, events, scheduling |
 
-**Total Budget**: $250 trial credits (180 days) covers ALL overages.
+**Total Budget**: $250 trial credits (180 days) are planned to cover expected development/demo overages; actual usage must be monitored.
 
 ---
 
@@ -28,7 +61,7 @@
 
 - GDS: Louvain, PageRank, Betweenness, Shortest Path, Node Similarity
 - APOC: Path expansion, text processing, periodic execution
-- Container: 512MB RAM, handles 200K nodes + 500K edges
+- Container: 512MB RAM; initial target is 200K nodes + 500K edges, subject to AppSail load testing
 - Persistence: Docker volume (survives restarts)
 - Backup: Nightly Cypher export → Stratus
 
@@ -52,7 +85,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 - Model: `AlpEge/bge-m3-onnx-int8` (HuggingFace)
 - Dimensions: 1024 dense + sparse + ColBERT
 - Runtime: ONNX Runtime CPU in Catalyst Function
-- Latency: ~60-100ms per doc
+- Latency: estimated ~60-100ms per document; validate on the deployed Catalyst runtime
 - Languages: 100+ including EN + KN code-mixed
 - Strategy: Pre-compute ALL 50K FIRs offline. Only embed queries at runtime.
 - Cost: $0
@@ -63,7 +96,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 - Model: `Sophia-AI/bge-reranker-v2-m3-onnx`
 - Runtime: ONNX Runtime CPU
-- Latency: ~50ms for 20 pairs
+- Latency: estimated ~50ms for 20 pairs; validate on the deployed Catalyst runtime
 - Pipeline: RRF top-60 → Rerank → Return top-5
 - Cost: $0
 
@@ -72,8 +105,8 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 ## 6. VECTOR SEARCH: pgvector HNSW in Catalyst Data Store
 
 - Index: HNSW (cosine similarity)
-- Capacity: 50K FIR + 200K entity vectors
-- Latency: 5-20ms top-100 ANN
+- Capacity target: 50K FIR + 200K entity vectors; validate storage, index build, and query behavior on Catalyst Data Store
+- Latency target: estimated 5-20ms for top-100 ANN; validate on the deployed Data Store
 - Hybrid: SQL filters + vector in single query
 - Cost: $0 (included in Data Store)
 
@@ -83,7 +116,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 - Engine: Faster-Whisper (CTranslate2) — base model
 - Languages: English + Kannada (multilingual model)
-- Latency: ~2x realtime on CPU
+- Latency target: approximately 2x realtime on CPU; validate with representative English/Kannada audio
 - Demo Strategy: Pre-recorded audio for live demo reliability
 - Fallback: Groq Whisper API (free, ultra-fast) for short clips
 - Catalyst Zia: 100 calls/month — reserve for demo only
@@ -104,9 +137,9 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 ## 9. TRANSLATION: IndicTrans2 (AI4Bharat) ONNX
 
 - Model: IndicTrans2 200M distilled (ONNX export)
-- Quality: BEST for Kannada-English (BLEU 21.2, beating NLLB)
+- Quality target: evaluate Kannada-English quality against a labeled sample; the cited BLEU result is external evidence, not a project guarantee
 - Runtime: ONNX CPU in Function
-- Latency: ~200ms per sentence
+- Latency target: approximately 200ms per sentence; validate on the deployed Catalyst runtime
 - Code-mixing: BGE-M3 handles code-mixed queries natively
 - Cost: $0
 
@@ -134,13 +167,24 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 ---
 
-## 12. ORCHESTRATION: LangGraph + Catalyst Circuits
+## 12. ORCHESTRATION: LangGraph Orchestrator + Reasoning Agents + Deterministic Engines
 
-- Agent Orchestration: LangGraph (Python) — stateful, checkpointed, parallel tool calls
-- Background Workflows: Catalyst Circuits (daily intelligence refresh, multi-step investigations)
-- Scheduling: Catalyst Cron (02:00-05:00 daily intelligence compute)
-- Events: Catalyst Signals (new FIR → entity extraction → embedding → alert)
-- Cost: $0
+- **Investigation Orchestrator**: LangGraph state machine, not an LLM agent. Manages routing, state, parallel execution, retries, checkpoints, and SSE progress.
+- **Planner Agent**: LLM-powered and invoked only for ambiguous or complex queries. Converts natural language into a validated execution plan; it never emits unrestricted SQL or Cypher.
+- **Reasoning Agent**: LLM-powered grounded synthesis over structured engine outputs, supporting/contradicting evidence, missing evidence, and hypotheses.
+- **Reporter Agent**: LLM-powered communication layer for investigator summaries, timelines, lead explanations, bilingual responses, and report wording.
+- **Decision Support**: **Deterministic Lead Ranking Engine** with optional LLM explanation; it is not an autonomous decision-maker.
+- **Deterministic engines**: SQL Retrieval, Search/Ranking, Graph Intelligence, Pattern Analysis, Behavioral Profiling, Financial Analysis, Forecasting, Timeline, and Evidence/Explainability.
+- **Execution paths**:
+  - Fast path: simple structured query → deterministic engine → evidence/citation response.
+  - Deep path: Planner → parallel engines → evidence reconciliation → Reasoner → lead ranking → Reporter.
+- **Background Workflows**: Catalyst Circuits for multi-step jobs, Catalyst Cron for scheduled intelligence, and Catalyst Signals for incremental ingestion/update events.
+- **Model routing**: LiteLLM selects Groq, Gemini, Mistral, or OpenRouter by task, complexity, quota, and fallback state; agents never hardcode a provider.
+- **Cost**: Minimize LLM calls; deterministic computation is preferred for every fact, count, score, path, and date.
+
+### Governing principle
+
+> **AI interprets intent and explains evidence. Deterministic engines compute facts. Humans review consequential conclusions.**
 
 ---
 
@@ -196,6 +240,47 @@ Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
 
 ---
 
+## 13A. EXECUTION, ACCURACY, AND SCALE DECISIONS
+
+### Fast/deep query routing
+
+```text
+Query
+  ├─ Exact, structured, low-risk → Fast path
+  │    SQL/Graph/Search engine → Evidence validator → Response
+  │
+  └─ Ambiguous, relational, or hypothesis query → Deep path
+       Planner → parallel engines → evidence reconciliation
+       → Reasoning Agent → lead ranking → Reporter
+```
+
+### Evidence gate
+
+No response is released until the Evidence/Explainability Engine checks:
+
+- Every factual claim has a source FIR, entity, relationship, or computed result.
+- Returned numbers match deterministic engine outputs.
+- Contradicting evidence is surfaced.
+- Restricted data is filtered by user role and investigation scope.
+- Low-confidence or incomplete results are explicitly qualified.
+- The full tool plan, sources, calculations, and model metadata are audit-recorded.
+
+### Resource optimization
+
+- Do not call an LLM for exact filters, counts, joins, graph paths, totals, dates, or deterministic scores.
+- Precompute network cards, profiles, hotspots, forecasts, financial summaries, and similar-case indexes.
+- Batch embeddings and writes; use cursor pagination and idempotent ingestion.
+- Rerank only a small fused candidate set; do not pass the full dataset to an LLM.
+- Cache plans, prepared intelligence cards, and repeated safe queries.
+- Apply provider quotas, token budgets, circuit breakers, and graceful fallback routing.
+- Run independent engines in parallel and stream progress through SSE.
+
+### Scale targets
+
+The initial target is 50K FIRs, 200K entities/vectors, and 500K relationships, subject to deployment benchmarks. State-wide sizing is a future scale test, not a current guarantee. Acceptance metrics are measured p50/p95/p99 latency, Precision@K/Recall@K, entity-resolution accuracy, citation coverage, unsupported-claim rate, Kannada/English parity, and cost per investigation.
+
+---
+
 ## 14. DECISION MATRIX (Final)
 
 | Slot | Decision | Cost |
@@ -214,8 +299,9 @@ Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
 | Translation | IndicTrans2 200M ONNX | $0 |
 | OCR | Tesseract 5.x | $0 |
 | Frontend | React 18 + Vite (Slate) | $0 |
-| Agents | LangGraph (Python) | $0 |
-| Workflows | Catalyst Circuits | $0 |
+| AI orchestration | LangGraph orchestrator + Planner/Reasoning/Reporter agents | $0 |
+| Deterministic engines | SQL, Search/Ranking, Graph, Pattern, Profiling, Financial, Forecasting, Timeline, Evidence | $0 |
+| Internal tools | Typed T01–T23 registry; engines are not LLM agents | $0 || Workflows | Catalyst Circuits | $0 |
 | Events | Catalyst Signals | $0 |
 | Scheduling | Catalyst Cron | $0 |
 | **TOTAL** | | **$0 + $250 credits** |
@@ -243,8 +329,8 @@ Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
 |------|-------|-----------|
 | 1 | Foundation | Catalyst project, schema, synthetic data (10K FIRs), Auth, Neo4j up |
 | 2 | Retrieval | 4-way hybrid retriever working (SQL+Vector+Graph+BM25→RRF→Rerank) |
-| 3 | Agents | LangGraph orchestrator + Planner + Collector + Reasoner agents |
-| 4 | Intelligence | Pre-computed engines: Network, Pattern, Profiler, Financial (Cron) |
+| 3 | Orchestration | LangGraph fast/deep router + Planner/Reasoner/Reporter + typed registry |
+| 4 | Intelligence | Deterministic SQL, Graph, Pattern, Profiling, Financial, Forecast, Timeline, Search, Evidence engines |
 | 5 | Workspace | React workspace: 6 panels, chat streaming, graph viz, timeline |
 | 6 | Multilingual + Governance | IndicTrans2, voice demo, audit log, RBAC, explainability |
 | 7 | Demo Scenarios | 5 scripted investigations wired end-to-end, polished |
@@ -261,7 +347,7 @@ Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
 | ONNX models too large for Function RAM | Medium | Use INT8 quantized models; lazy-load; warm-up on deploy |
 | Data Store operation limits | High | Batch operations, aggressive caching, pre-compute intelligence |
 | Kannada voice quality | Medium | Pre-record demo audio; Piper + Edge TTS dual pipeline |
-| Neo4j memory at 512MB | Low | 200K nodes + 500K edges fits ~400MB; GDS streams, doesn't materialize |
+| Neo4j memory at 512MB | Low | Initial 200K-node/500K-edge target requires load testing; use streaming GDS and tune memory based on measurements |
 | Team velocity | Medium | Frozen scope after Week 2; parallel tracks (BE/FE/Data) |
 
 ---
@@ -278,9 +364,9 @@ These decisions are FINAL:
 6. ✅ pgvector HNSW (co-located vector search)
 7. ✅ Faster-Whisper + Piper (CPU voice, demo-ready)
 8. ✅ IndicTrans2 ONNX (best Kannada translation)
-9. ✅ LangGraph + 23-Tool Registry (agent fleet orchestration)
+9. ✅ LangGraph orchestrator + Planner/Reasoner/Reporter + 23-tool typed registry + deterministic engines
 10. ✅ React 18 + Slate (6-panel investigation workspace)
-11. ✅ Pre-computed intelligence (Cron + Signals, O(1) at query time)
-12. ✅ Immutable audit log (hash-chained, court-admissible)
+11. ✅ Pre-computed intelligence (Cron + Signals; direct lookup target, measured during validation)
+12. ✅ Tamper-evident audit log (hash-chained; legal admissibility requires separate review)
 13. ✅ 5 Demo scenarios (scope frozen)
 14. ✅ 8-week plan (no scope additions after Week 2)

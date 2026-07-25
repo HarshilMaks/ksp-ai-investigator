@@ -1,223 +1,115 @@
-# 🤖 AI Agent Fleet Architecture — KSP InvestigateAI
+# KSP InvestigateAI — Orchestrator and Deterministic Engine Architecture
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
 
-> **Classification**: CORE DIFFERENTIATOR — Palantir Gotham-level multi-agent orchestration  
+
+> **Classification**: CORE DIFFERENTIATOR — evidence-grounded orchestration over deterministic intelligence
 > **Version**: 1.0.0  
 > **Last Updated**: 2026-07-23  
-> **Entry Point**: `src/agents/orchestrator.py`
+> **Entry Point**: `src/orchestration/orchestrator.py`
 
 ---
 
-## Why Agents, Not a Chatbot
+## Why an Orchestrator, Not a Chatbot
 
 ```
 ❌ Chatbot:    Question → LLM → Answer (single inference, no tools, no memory)
-✅ This:       Question → PLAN → 5-7 PARALLEL TOOL CALLS → REASON → MULTI-ARTIFACT PACKAGE
+✅ This:       Question → route fast/deep → deterministic engines → evidence gate → cited response/package
 ```
 
-KSP InvestigateAI deploys a **fleet of 10 specialized agents**, each with distinct capabilities, tool access, and reasoning strategies. They coordinate through a **LangGraph state machine** with persistent memory, parallel execution, and conditional routing.
+KSP InvestigateAI deploys one **LangGraph Investigation Orchestrator** with three LLM reasoning stages and deterministic engines. The state machine provides persistent memory, parallel execution, authorization, retries, and conditional routing; the number of parallel engine calls is a design target pending measurement.
 
 ---
 
-## 1. Agent Fleet Overview
+## Orchestrator and Reasoning Stages
 
-| # | Agent | Role | Model | Tools |
-|---|-------|------|-------|-------|
-| 1 | **Investigation Orchestrator** | LangGraph state machine — routes, checkpoints, manages lifecycle | — (graph engine) | All (dispatch) |
-| 2 | **Planner Agent** | Decomposes NL query → structured execution plan | GPT-4o / Claude 3.5 | T01, T07, T19 |
-| 3 | **Evidence Collector Agent** | 4-way hybrid retrieval (SQL + vector + graph + full-text) | GPT-4o-mini | T01, T02, T03, T07 |
-| 4 | **Graph Analyzer Agent** | Neo4j Cypher + GDS algorithms (communities, centrality) | GPT-4o | T03, T04, T05, T06 |
-| 5 | **Pattern Detector Agent** | Clustering, time-series anomalies, MO matching | GPT-4o | T08, T09, T10, T17 |
-| 6 | **Behavioral Profiler Agent** | Risk scoring, escalation detection, offender cards | GPT-4o-mini | T12, T09, T18 |
-| 7 | **Financial Analyst Agent** | UPI/account graphs, money trails, mule detection | GPT-4o | T11, T03, T05, T06 |
-| 8 | **Reasoner Agent** | Chain-of-Thought + hypothesis evaluation + confidence | Claude 3.5 Sonnet | T15, T20, T13 |
-| 9 | **Decision Support Agent** | Leads, similar cases, actionable recommendations | GPT-4o | T13, T15, T16, T22 |
-| 10 | **Reporter Agent** | Investigation packages — PDF, timeline, summary | GPT-4o-mini | T16, T14, T21, T23 |
+InvestigateAI has one **LangGraph Investigation Orchestrator**. It is a state machine—not an LLM agent—and owns routing, state, checkpointing, retries, parallel fan-out/fan-in, authorization context, and SSE progress. LLM use is limited to three reasoning stages:
 
-### Agent Detail Cards
+| Stage | Invocation | Responsibility | Output boundary |
+|---|---|---|---|
+| **Planner Agent** | Optional; ambiguity or complexity only | Converts intent into a validated execution plan; never emits unrestricted SQL/Cypher | Typed plan referencing allowed T01–T23 tools |
+| **Reasoning Agent** | Deep path after engine results and reconciliation | Grounded synthesis, hypothesis evaluation, contradictions, missing evidence, and structured rationale | Claims linked to evidence; no literal private chain-of-thought |
+| **Reporter Agent** | When communication or a package is requested | Wording for summaries, timelines, bilingual responses, and reports | Evidence-gated, human-reviewable report artifacts |
 
-#### 1. Investigation Orchestrator
-```python
-"""
-The Orchestrator is NOT an LLM agent — it's the LangGraph StateGraph itself.
-It manages:
-  - State transitions between agents
-  - Conditional routing (simple → fast path, complex → full pipeline)
-  - Parallel fan-out/fan-in execution
-  - PostgreSQL checkpointing for persistent memory
-  - Error recovery and retry logic
-"""
+Decision Support is **not an agent**. The deterministic **Lead Ranking Engine** ranks leads from evidence, rules, expected value, freshness, and permissions; an optional LLM explanation may describe the ranking after validation.
+
+### Fast and deep routing
+
+```text
+Exact/structured, low-risk query
+  → deterministic SQL/Search/Graph/Timeline engine
+  → Evidence/Explainability Engine (evidence gate)
+  → synchronous cited response; no LLM when unnecessary
+
+Ambiguous, relational, or hypothesis query
+  → optional Planner Agent
+  → parallel deterministic engines
+  → evidence reconciliation and gate
+  → Reasoning Agent
+  → deterministic Lead Ranking Engine
+  → optional Reporter Agent
 ```
 
-#### 2. Planner Agent
+### Deterministic engine registry
+
+Tools invoke engines; engines are not agents and do not create public routes. The registry is internal, typed, authorized, and audited.
+
+| Engine | Computes | Typical tools |
+|---|---|---|
+| SQL Retrieval | filters, joins, counts, dates, totals | T01 |
+| Search/Ranking | vector/BM25 retrieval, RRF, reranking | T02, T13 |
+| Graph Intelligence | traversals, paths, communities, centrality | T03–T06 |
+| Pattern Analysis | MO similarity, anomalies, clusters, temporal patterns | T08, T09 |
+| Behavioral Profiling | deterministic profile features and review signals | T12 |
+| Financial Analysis | transaction flows, layering, structuring, mule indicators | T11 |
+| Forecasting | validated time-series projections and uncertainty | T10, T17 |
+| Timeline | chronological reconstruction and gaps | T14 |
+| Evidence/Explainability | citations, numbers, permissions, contradictions, confidence | T20, T22 |
+
+### Evidence gate
+
+The Evidence/Explainability Engine must validate every response before release: source coverage for factual claims, agreement of numbers with engine outputs, permission and investigation-scope filters, surfaced contradictions, explicit uncertainty, and audit metadata for the plan, sources, calculations, and model calls. Consequential conclusions remain subject to human review.
+
+### Model router and resource budgets
+
+LiteLLM selects Groq Llama 3.3 70B, Gemini 2.5 Flash, Mistral Small, or OpenRouter Llama 3.1 8B emergency fallback by task, complexity, quota, and fallback state. Business logic never hardcodes a provider. Resource controls are design targets pending measurement: avoid LLM calls for exact filters/counts/joins/paths/scores, precompute cards, bound graph depth and candidate sets, batch embeddings/writes, cache safe results, enforce token budgets and circuit breakers, and measure p50/p95/p99 latency, quality, citation coverage, unsupported-claim rate, and cost per investigation.
+
+### Orchestrator detail
+
+```python
+class InvestigationOrchestrator:
+    """LangGraph StateGraph; deterministic control plane, not an LLM agent."""
+    # route, checkpoint, authorize, fan out engines, reconcile, retry, stream SSE
+    ...
+```
+
+#### Planner Agent
 ```python
 class PlannerAgent:
-    """
-    Decomposes natural language into a structured execution plan.
-    
-    Input:  "Find links between recent UPI fraud cases in Whitefield"
-    Output: ExecutionPlan(
-        intent="relationship_discovery",
-        complexity="complex",
-        entities=["UPI fraud", "Whitefield"],
-        temporal_filter=TimeRange(days=90),
-        required_tools=[T01, T02, T03, T11, T05],
-        parallel_groups=[
-            ["evidence_collector"],
-            ["graph_analyzer", "pattern_detector", "financial_analyst"],
-            ["reasoner"],
-            ["decision_support", "reporter"]
-        ]
-    )
-    """
-    model: str = "gpt-4o"
-    temperature: float = 0.1  # Low creativity, high precision
-    system_prompt: str = PLANNER_SYSTEM_PROMPT
-    max_tools_per_plan: int = 12
-    
-    def decompose(self, query: str, context: InvestigationState) -> ExecutionPlan:
-        ...
+    """Optional intent-to-plan stage for ambiguous or complex requests."""
+    ...
 ```
 
-#### 3. Evidence Collector Agent
+#### Reasoning Agent
 ```python
-class EvidenceCollectorAgent:
-    """
-    4-Way Hybrid Retrieval Strategy:
-      1. SQL (structured filters — date, station, crime type)
-      2. Vector (semantic similarity — pgvector cosine)
-      3. Graph (relationship traversal — Neo4j 1-3 hops)
-      4. Full-text (keyword search — PostgreSQL tsvector)
-    
-    Results are fused using Reciprocal Rank Fusion (RRF):
-      score = Σ 1/(k + rank_i) for each retrieval method
-    """
-    retrieval_methods: list = ["sql", "vector", "graph", "fulltext"]
-    fusion_k: int = 60  # RRF constant
-    max_results_per_method: int = 50
-    final_top_k: int = 20
+class ReasoningAgent:
+    """Grounded synthesis and hypothesis evaluation over validated engine outputs."""
+    ...
 ```
 
-#### 4. Graph Analyzer Agent
-```python
-class GraphAnalyzerAgent:
-    """
-    Executes Neo4j Cypher queries and GDS algorithms:
-      - Community detection (Louvain, Label Propagation)
-      - Centrality (PageRank, Betweenness, Degree)
-      - Pathfinding (Dijkstra, A*, all shortest paths)
-      - Similarity (Node Similarity, Jaccard)
-    
-    Translates LLM-generated intent into optimized Cypher.
-    """
-    neo4j_driver: AsyncDriver
-    gds_client: GraphDataScience
-    max_hops: int = 5
-    timeout_ms: int = 30000
-```
-
-#### 5. Pattern Detector Agent
-```python
-class PatternDetectorAgent:
-    """
-    Detects criminal patterns across multiple dimensions:
-      - MO Clustering: HDBSCAN on crime description embeddings
-      - Temporal Anomalies: Prophet forecast + residual spikes
-      - Spatial Hotspots: H3 hexagon density clustering
-      - Escalation Patterns: time-series of severity scores
-    """
-    clustering_algorithm: str = "hdbscan"
-    min_cluster_size: int = 5
-    prophet_changepoint_prior: float = 0.05
-    h3_resolution: int = 8  # ~460m hexagons
-```
-
-#### 6. Behavioral Profiler Agent
-```python
-class BehavioralProfilerAgent:
-    """
-    Builds and scores offender behavioral profiles:
-      - Risk Score: 0-100 composite (recency, frequency, severity, escalation)
-      - Escalation Detection: increasing severity over time windows
-      - Demographic Correlation: social indicators overlay
-      - Network Position: centrality in criminal graph
-    """
-    risk_weights: dict = {
-        "recency": 0.25,
-        "frequency": 0.30,
-        "severity": 0.25,
-        "escalation": 0.20
-    }
-    escalation_window_days: int = 180
-```
-
-#### 7. Financial Analyst Agent
-```python
-class FinancialAnalystAgent:
-    """
-    Traces money flows through UPI/banking networks:
-      - Account Graph Traversal: follow the money N hops
-      - Mule Detection: accounts with high fan-in/fan-out ratios
-      - Layering Detection: rapid pass-through transactions
-      - Amount Pattern Analysis: structuring below thresholds
-    """
-    max_traversal_depth: int = 6
-    mule_fanout_threshold: int = 10
-    structuring_threshold_inr: int = 49000  # Just below 50K reporting
-```
-
-#### 8. Reasoner Agent
-```python
-class ReasonerAgent:
-    """
-    The 'thinking' agent — synthesizes evidence into conclusions:
-      - Chain-of-Thought: structured multi-step reasoning
-      - Hypothesis Generation: propose explanations for evidence
-      - Hypothesis Evaluation: score each against evidence (support/contradict/neutral)
-      - Confidence Scoring: calibrated 0-1 confidence with uncertainty bounds
-      - Citation Tracking: every claim linked to source evidence
-    """
-    model: str = "claude-3-5-sonnet"  # Best at reasoning
-    temperature: float = 0.3
-    max_hypotheses: int = 5
-    min_confidence_to_present: float = 0.4
-```
-
-#### 9. Decision Support Agent
-```python
-class DecisionSupportAgent:
-    """
-    Transforms analysis into actionable intelligence:
-      - Lead Generation: ranked next-steps with expected value
-      - Similar Cases: vector + structural case matching
-      - Recommendations: prioritized actions for the officer
-      - Evidence Gaps: what's missing and how to get it
-    """
-    max_leads: int = 10
-    similarity_threshold: float = 0.75
-    recommendation_categories: list = ["immediate", "investigate", "monitor", "archive"]
-```
-
-#### 10. Reporter Agent
+#### Reporter Agent
 ```python
 class ReporterAgent:
-    """
-    Generates investigation packages:
-      - PDF Report: WeasyPrint formatted with KSP branding
-      - Timeline: chronological event visualization data
-      - Summary: structured case summary with key findings
-      - Evidence Board: pinned artifacts for case file
-      - Alerts: real-time signals for ongoing monitoring
-    """
-    pdf_engine: str = "weasyprint"  # SmartBrowz for complex layouts
-    template_dir: str = "templates/reports/"
-    max_summary_words: int = 500
+    """Communication stage for cited summaries, timelines, bilingual text, and reports."""
+    ...
 ```
-
----
 
 ## 2. The 23-Tool Registry
 
-Every capability the AI fleet can invoke. Tools are typed, validated, and audited.
+The registry remains the canonical internal T01–T23 contract. Each typed tool delegates to a deterministic engine or a reasoning stage as listed above; no tool is a public route and no engine is an agent.
+
+Every capability the typed internal registry can invoke. Tools are typed, validated, and audited.
 
 ```python
 from typing import TypedDict, Literal, Optional
@@ -237,9 +129,9 @@ class ToolCall(BaseModel):
 
 | ID | Tool | Backend | Latency | Description |
 |----|------|---------|---------|-------------|
-| **T01** | `sql_query` | PostgreSQL | <100ms | Structured filters on normalized Data Store |
-| **T02** | `vector_search` | pgvector | <200ms | Semantic similarity search (cosine, 768-dim) |
-| **T03** | `graph_traverse` | Neo4j | <500ms | Cypher queries, N-hop relationship traversal |
+| **T01** | `sql_query` | Catalyst Data Store | Design target; measure | Structured filters on normalized Data Store |
+| **T02** | `vector_search` | pgvector HNSW in Catalyst Data Store | Design target; measure | Semantic similarity search (cosine, 1024-dim BGE-M3) |
+| **T03** | `graph_traverse` | Neo4j | Design target; measure | Cypher queries, N-hop relationship traversal |
 
 ```python
 # T01: sql_query
@@ -499,521 +391,122 @@ class AlertCreateParams(BaseModel):
 
 ---
 
-## 3. LangGraph State Machine — Full Graph Definition
+## 3. LangGraph Investigation Orchestrator
 
-The Investigation Orchestrator is implemented as a **LangGraph StateGraph** — not a simple chain, but a full directed graph with conditional routing, parallel execution, and persistent checkpointing.
+The Investigation Orchestrator is a LangGraph `StateGraph`, not an LLM agent. It routes fast/deep work, invokes typed registry tools, fans out independent deterministic engines, reconciles evidence, checkpoints case memory, retries bounded failures, and streams SSE progress.
 
 ### InvestigationState TypedDict
 
 ```python
-from typing import TypedDict, Optional, Annotated
-from langgraph.graph import add_messages
-from datetime import datetime
-from enum import Enum
-
-class Complexity(Enum):
-    SIMPLE = "simple"          # Direct lookup, 1-2 tools
-    MODERATE = "moderate"      # Multi-step, 3-4 tools
-    COMPLEX = "complex"        # Full pipeline, 5+ tools, parallel
-    CRITICAL = "critical"      # High-stakes, requires human review
-
 class InvestigationState(TypedDict):
-    """Complete state flowing through the agent graph."""
-    
-    # === Input ===
-    query: str                                    # Original officer query (EN or KN)
-    query_english: str                            # Translated to English if needed
-    session_id: str                               # Persistent session identifier
-    officer_id: str                               # Authenticated officer
-    officer_rank: str                             # For access control
-    timestamp: datetime                           # Query timestamp
-    
-    # === Planning ===
-    intent: str                                   # Classified intent
-    complexity: Complexity                        # Routing decision
-    execution_plan: dict                          # Structured plan from Planner
-    entities_extracted: list[dict]                # NER results
-    temporal_filter: Optional[dict]               # Time range if specified
-    spatial_filter: Optional[dict]                # Location if specified
-    
-    # === Evidence Collection ===
-    sql_results: list[dict]                       # From T01
-    vector_results: list[dict]                    # From T02 (with scores)
-    graph_results: list[dict]                     # From T03
-    fulltext_results: list[dict]                  # Full-text search hits
-    fused_evidence: list[dict]                    # RRF-merged ranked list
-    evidence_count: int                           # Total evidence pieces
-    
-    # === Analysis ===
-    communities: list[dict]                       # From T04 (gang clusters)
-    centrality_scores: list[dict]                 # From T05 (key players)
-    paths: list[dict]                             # From T06 (connections)
-    patterns: list[dict]                          # From T08 (MO clusters)
-    temporal_analysis: Optional[dict]             # From T09 (trends)
-    hotspots: list[dict]                          # From T10 (spatial)
-    financial_trails: list[dict]                  # From T11 (money flow)
-    behavioral_profiles: list[dict]              # From T12 (risk cards)
-    
-    # === Reasoning ===
-    hypotheses: list[dict]                        # Generated hypotheses
-    hypothesis_scores: list[dict]                 # Evidence support scores
-    confidence: float                             # Overall confidence 0-1
-    reasoning_trace: list[dict]                   # Step-by-step CoT
-    citations: list[dict]                         # Evidence → claim mapping
-    
-    # === Output ===
-    leads: list[dict]                             # Ranked next steps
-    similar_cases: list[dict]                     # Matching past cases
-    recommendations: list[dict]                   # Actionable items
-    summary: str                                  # Natural language summary
-    timeline: list[dict]                          # Chronological events
-    report_url: Optional[str]                     # Generated PDF URL
-    alerts_created: list[str]                     # Alert IDs created
-    
-    # === Meta ===
-    messages: Annotated[list, add_messages]       # Chat history
-    errors: list[dict]                            # Error log
-    tool_calls_made: list[dict]                   # Audit trail
-    execution_time_ms: int                        # Total elapsed
-    tokens_used: int                              # LLM token count
-    checkpoint_id: Optional[str]                  # For resumption
+    query: str
+    session_id: str
+    officer_id: str
+    authorization: dict
+    route: Literal["fast", "deep"]
+    execution_plan: dict | None
+    engine_results: dict[str, list[dict]]
+    evidence_board: list[dict]
+    hypotheses: list[dict]
+    structured_rationale: list[dict]
+    citations: list[dict]
+    contradictions: list[dict]
+    confidence: float
+    leads: list[dict]
+    timeline: list[dict]
+    package: dict | None
+    errors: list[dict]
+    tool_calls_made: list[dict]
+    checkpoint_id: str | None
 ```
 
-### Node Definitions
+### Graph nodes and routing
 
 ```python
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
 
-# Initialize the graph
-graph = StateGraph(InvestigationState)
+builder = StateGraph(InvestigationState)
+builder.add_node("route", route_request)                 # deterministic classification
+builder.add_node("planner", optional_planner_stage)      # only ambiguous/complex input
+builder.add_node("engines", invoke_typed_engines)        # SQL/search/graph/etc.
+builder.add_node("evidence_gate", validate_evidence)     # mandatory release gate
+builder.add_node("reasoner", grounded_reasoning_stage)  # deep path only
+builder.add_node("lead_ranking", rank_leads)             # deterministic engine
+builder.add_node("reporter", reporter_stage)             # wording/package only
 
-# === Add Nodes (each agent is a node) ===
-graph.add_node("planner", planner_agent.invoke)
-graph.add_node("evidence_collector", evidence_collector_agent.invoke)
-graph.add_node("graph_analyzer", graph_analyzer_agent.invoke)
-graph.add_node("pattern_detector", pattern_detector_agent.invoke)
-graph.add_node("behavioral_profiler", behavioral_profiler_agent.invoke)
-graph.add_node("financial_analyst", financial_analyst_agent.invoke)
-graph.add_node("reasoner", reasoner_agent.invoke)
-graph.add_node("decision_support", decision_support_agent.invoke)
-graph.add_node("reporter", reporter_agent.invoke)
-
-# === Parallel Analysis Hub (fan-out / fan-in) ===
-from langgraph.graph import Send
-
-def route_to_analyzers(state: InvestigationState) -> list[Send]:
-    """Fan-out: send state to multiple analyzers in parallel."""
-    plan = state["execution_plan"]
-    sends = []
-    
-    if "graph_analysis" in plan["required_capabilities"]:
-        sends.append(Send("graph_analyzer", state))
-    if "pattern_detection" in plan["required_capabilities"]:
-        sends.append(Send("pattern_detector", state))
-    if "behavioral_profiling" in plan["required_capabilities"]:
-        sends.append(Send("behavioral_profiler", state))
-    if "financial_analysis" in plan["required_capabilities"]:
-        sends.append(Send("financial_analyst", state))
-    
-    # At minimum, always run graph analyzer
-    if not sends:
-        sends.append(Send("graph_analyzer", state))
-    
-    return sends
+builder.set_entry_point("route")
+builder.add_conditional_edges("route", choose_fast_or_deep,
+                              {"fast": "engines", "deep": "planner"})
+builder.add_edge("planner", "engines")
+builder.add_edge("engines", "evidence_gate")
+builder.add_conditional_edges("evidence_gate", needs_reasoner,
+                              {"reason": "reasoner", "rank": "lead_ranking"})
+builder.add_edge("reasoner", "lead_ranking")
+builder.add_conditional_edges("lead_ranking", needs_reporter,
+                              {"report": "reporter", "done": END})
+builder.add_edge("reporter", END)
 ```
 
-### Edge Definitions — Conditional Routing
+Independent engine calls run in parallel only when the plan and resource budget permit it; actual concurrency and latency are measured acceptance criteria. Exact filters, counts, joins, paths, dates, and deterministic scores use the fast path without an LLM.
+
+### Catalyst-compatible checkpoint adapter — persistent case memory
+
+Investigation state survives across sessions through a Catalyst-compatible checkpoint adapter backed by Catalyst Data Store, with Catalyst Cache for hot session state. The adapter must be validated against deployed Catalyst APIs.
 
 ```python
-def route_by_complexity(state: InvestigationState) -> str:
-    """Route based on query complexity determined by Planner."""
-    complexity = state["complexity"]
-    
-    if complexity == Complexity.SIMPLE:
-        # Fast path: skip analysis, go straight to decision support
-        return "decision_support"
-    elif complexity == Complexity.CRITICAL:
-        # Full pipeline with all analyzers
-        return "evidence_collector"
-    else:
-        # Standard path
-        return "evidence_collector"
+class CatalystCheckpointAdapter:
+    async def put(self, thread_id: str, state: dict) -> None: ...
+    async def get(self, thread_id: str) -> dict | None: ...
 
-def should_generate_report(state: InvestigationState) -> str:
-    """Decide if a full report is needed."""
-    if state["complexity"] in [Complexity.COMPLEX, Complexity.CRITICAL]:
-        return "reporter"
-    if state.get("execution_plan", {}).get("generate_report", False):
-        return "reporter"
-    return END
-
-# === Wire the Graph ===
-# Entry point
-graph.set_entry_point("planner")
-
-# Planner → routes by complexity
-graph.add_conditional_edges(
-    "planner",
-    route_by_complexity,
-    {
-        "evidence_collector": "evidence_collector",
-        "decision_support": "decision_support",  # Simple fast-path
-    }
-)
-
-# Evidence Collector → Parallel Analyzers (fan-out)
-graph.add_conditional_edges(
-    "evidence_collector",
-    route_to_analyzers  # Returns list[Send] for parallel execution
-)
-
-# All Analyzers → Reasoner (fan-in / join)
-graph.add_edge("graph_analyzer", "reasoner")
-graph.add_edge("pattern_detector", "reasoner")
-graph.add_edge("behavioral_profiler", "reasoner")
-graph.add_edge("financial_analyst", "reasoner")
-
-# Reasoner → Decision Support
-graph.add_edge("reasoner", "decision_support")
-
-# Decision Support → Reporter or END
-graph.add_conditional_edges(
-    "decision_support",
-    should_generate_report,
-    {
-        "reporter": "reporter",
-        END: END,
-    }
-)
-
-# Reporter → END
-graph.add_edge("reporter", END)
+checkpointer = CatalystCheckpointAdapter()
+compiled_graph = builder.compile(checkpointer=checkpointer)
 ```
 
-### Execution Graph Visualization
+## 4. Engine-to-Tool Mapping
 
-```
-                    ┌─────────────┐
-                    │   PLANNER   │
-                    └──────┬──────┘
-                           │
-              ┌────────────┼────────────┐
-              │ SIMPLE     │ COMPLEX    │
-              ▼            ▼            │
-    ┌─────────────┐  ┌──────────────┐  │
-    │  DECISION   │  │  EVIDENCE    │  │
-    │  SUPPORT    │  │  COLLECTOR   │  │
-    └──────┬──────┘  └──────┬───────┘  │
-           │                │          │
-           ▼         ┌──────┼──────────┼──────┐  ← PARALLEL FAN-OUT
-          END        │      │          │      │
-                     ▼      ▼          ▼      ▼
-                ┌────────┐┌────────┐┌──────┐┌──────────┐
-                │ GRAPH  ││PATTERN ││BEHAV ││FINANCIAL │
-                │ANALYZER││DETECTOR││PROFIL││ ANALYST  │
-                └───┬────┘└───┬────┘└──┬───┘└────┬─────┘
-                    │         │        │         │
-                    └─────────┴────┬───┴─────────┘  ← FAN-IN (JOIN)
-                                   │
-                              ┌────▼─────┐
-                              │ REASONER │
-                              └────┬─────┘
-                                   │
-                          ┌────────▼────────┐
-                          │DECISION SUPPORT │
-                          └────────┬────────┘
-                                   │
-                    ┌──────────────┼──────────────┐
-                    │ NO REPORT    │ REPORT       │
-                    ▼              ▼              │
-                   END       ┌──────────┐        │
-                             │ REPORTER │        │
-                             └────┬─────┘        │
-                                  │              │
-                                  ▼              │
-                                 END             │
-```
-
-### PostgreSQL Checkpointer — Persistent Case Memory
+Tools are typed, authorized, audited registry entries. They invoke engines; engines are not agents. Planner, Reasoner, and Reporter are the only LLM-powered stages.
 
 ```python
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
-# Initialize persistent checkpointer
-DB_URI = "postgresql+asyncpg://ksp_agents:***@localhost:5432/ksp_investigations"
-
-async def create_checkpointer():
-    """Create PostgreSQL-backed checkpointer for persistent state."""
-    checkpointer = AsyncPostgresSaver.from_conn_string(DB_URI)
-    await checkpointer.setup()  # Creates checkpoint tables
-    return checkpointer
-
-# Compile graph with checkpointer
-checkpointer = await create_checkpointer()
-compiled_graph = graph.compile(checkpointer=checkpointer)
-
-# === Invoke with thread_id for session persistence ===
-config = {
-    "configurable": {
-        "thread_id": f"investigation_{officer_id}_{case_id}",  # Persistent key
-    }
-}
-
-# First query at 10:00 AM
-result = await compiled_graph.ainvoke(
-    {"query": "Show me UPI fraud cases in Whitefield last 3 months"},
-    config=config
-)
-
-# Officer returns NEXT DAY — state is fully preserved
-# Same thread_id = same investigation context
-result = await compiled_graph.ainvoke(
-    {"query": "Now find connections between the top 3 accused"},
-    config=config  # Same thread_id — AI REMEMBERS everything
-)
-```
-
-#### How the Officer Returns Next Day and AI Remembers
-
-```python
-"""
-SESSION PERSISTENCE ARCHITECTURE:
-
-1. Every state transition is checkpointed to PostgreSQL
-2. thread_id = f"investigation_{officer_id}_{case_id}"
-3. When officer logs back in:
-   a. Frontend sends same thread_id
-   b. LangGraph loads last checkpoint from PostgreSQL
-   c. Full InvestigationState is restored:
-      - All evidence collected
-      - All analysis performed
-      - All hypotheses generated
-      - Chat history
-      - Pinned evidence
-   d. Officer continues EXACTLY where they left off
-
-4. Checkpoint cleanup:
-   - Active investigations: kept indefinitely
-   - Closed cases: archived after 90 days
-   - Session without activity: pruned after 30 days
-
-5. Multi-device: Officer starts on desktop, continues on mobile
-   — same thread_id, same state, seamless.
-"""
-
-class InvestigationSession:
-    """Manages persistent investigation sessions."""
-    
-    async def resume_or_create(
-        self, officer_id: str, case_id: Optional[str] = None
-    ) -> tuple[CompiledGraph, dict]:
-        """Resume existing investigation or start new one."""
-        thread_id = f"investigation_{officer_id}_{case_id or 'general'}"
-        config = {"configurable": {"thread_id": thread_id}}
-        
-        # Check if checkpoint exists
-        checkpoint = await self.checkpointer.aget(config)
-        
-        if checkpoint:
-            # RESUME: Officer is back, full context preserved
-            logger.info(f"Resuming investigation {thread_id}, "
-                       f"last active: {checkpoint.metadata['timestamp']}")
-            return self.compiled_graph, config
-        else:
-            # NEW: Fresh investigation
-            logger.info(f"Starting new investigation {thread_id}")
-            return self.compiled_graph, config
-```
-
----
-
-## 4. Agent-to-Tool Mapping
-
-Which agent can invoke which tools. Enforced at runtime — agents cannot call tools outside their scope.
-
-```python
-AGENT_TOOL_PERMISSIONS: dict[str, list[str]] = {
-    "planner": [
-        "T01_sql_query",         # Quick lookups to understand data shape
-        "T07_entity_resolve",    # Resolve ambiguous entity references
-        "T19_translate",         # Translate Kannada queries to English
-    ],
-    "evidence_collector": [
-        "T01_sql_query",         # Structured data retrieval
-        "T02_vector_search",     # Semantic similarity search
-        "T03_graph_traverse",    # Relationship traversal
-        "T07_entity_resolve",    # Entity disambiguation
-    ],
-    "graph_analyzer": [
-        "T03_graph_traverse",    # Deep graph exploration
-        "T04_community_detect",  # Gang/network discovery
-        "T05_centrality_score",  # Key player identification
-        "T06_shortest_path",     # Connection discovery
-    ],
-    "pattern_detector": [
-        "T08_pattern_match",     # MO clustering
-        "T09_temporal_analysis", # Time-series anomalies
-        "T10_hotspot_detect",    # Spatial clustering
-        "T17_forecast_crime",    # Predictive forecasting
-    ],
-    "behavioral_profiler": [
-        "T12_offender_profile",  # Pre-computed behavioral cards
-        "T09_temporal_analysis", # Escalation time-series
-        "T18_demographic_correlate",  # Social indicators
-    ],
-    "financial_analyst": [
-        "T11_financial_trail",   # UPI/account graph traversal
-        "T03_graph_traverse",    # Transaction network exploration
-        "T05_centrality_score",  # Money hub detection
-        "T06_shortest_path",     # Money flow paths
-    ],
-    "reasoner": [
-        "T15_lead_generate",     # Evidence gap reasoning
-        "T20_explain_reasoning", # Structured reasoning trace
-        "T13_similar_cases",     # Case matching for validation
-    ],
-    "decision_support": [
-        "T13_similar_cases",     # Similar case recommendations
-        "T15_lead_generate",     # Investigative lead generation
-        "T16_case_summarize",    # Structured summaries
-        "T22_pin_evidence",      # Save to investigation board
-    ],
-    "reporter": [
-        "T16_case_summarize",    # Summary generation
-        "T14_timeline_build",    # Chronological assembly
-        "T21_generate_report",   # PDF/HTML report generation
-        "T23_alert_create",      # Real-time monitoring alerts
-    ],
+ENGINE_TOOL_REGISTRY = {
+    "sql_retrieval": ["T01_sql_query"],
+    "search_ranking": ["T02_vector_search", "T13_similar_cases"],
+    "graph_intelligence": ["T03_graph_traverse", "T04_community_detect", "T05_centrality_score", "T06_shortest_path"],
+    "pattern_analysis": ["T08_pattern_match", "T09_temporal_analysis"],
+    "forecasting": ["T10_hotspot_detect", "T17_forecast_crime"],
+    "financial_analysis": ["T11_financial_trail"],
+    "behavioral_profiling": ["T12_offender_profile"],
+    "timeline": ["T14_timeline_build"],
+    "lead_ranking": ["T15_lead_generate"],
+    "communication": ["T16_case_summarize", "T19_translate", "T21_generate_report", "T23_alert_create"],
+    "evidence_explainability": ["T20_explain_reasoning", "T22_pin_evidence"],
 }
 ```
 
-### Tool Access Matrix (Visual)
-
-```
-                    T01 T02 T03 T04 T05 T06 T07 T08 T09 T10 T11 T12 T13 T14 T15 T16 T17 T18 T19 T20 T21 T22 T23
-Planner              ✓                           ✓                                               ✓
-Evidence Collector   ✓   ✓   ✓                   ✓
-Graph Analyzer               ✓   ✓   ✓   ✓
-Pattern Detector                                         ✓   ✓   ✓                       ✓
-Behav. Profiler                                              ✓            ✓                   ✓
-Financial Analyst            ✓       ✓   ✓                           ✓
-Reasoner                                                                  ✓       ✓            ✓
-Decision Support                                                          ✓       ✓   ✓            ✓
-Reporter                                                                       ✓       ✓            ✓   ✓
-```
-
----
+Authorization is applied before each tool call. The Evidence/Explainability Engine validates source coverage, numbers, citations, permissions, contradictions, and confidence before any response or package is released.
 
 ## 5. Execution Flow Example
 
-### Query: "Find links between recent UPI fraud cases in Whitefield"
+### Query: “Find links between recent UPI fraud cases in Whitefield”
 
-Full trace through the agent fleet:
+This is an illustrative trace; timings, counts, scores, and quality remain pending benchmark validation.
 
-```
-TIME     AGENT               ACTION                                          TOOLS CALLED
-─────────────────────────────────────────────────────────────────────────────────────────────
-0ms      Orchestrator        Receives query, creates InvestigationState       —
-15ms     Planner             Decompose NL → ExecutionPlan                     T07 (entity_resolve)
-                             → Intent: relationship_discovery
-                             → Complexity: COMPLEX
-                             → Entities: ["UPI fraud", "Whitefield"]
-                             → Temporal: last 90 days
-                             → Route: FULL PIPELINE
-
-180ms    Evidence Collector  4-way hybrid retrieval                           T01, T02, T03, T07
-                             → T01: SELECT * FROM firs WHERE category='UPI Fraud' 
-                                    AND station LIKE '%Whitefield%' AND date > now()-90d
-                             → T02: vector_search("UPI fraud Whitefield", top_k=20)
-                             → T03: MATCH (f:FIR)-[:ACCUSED_IN]-(p:Person)
-                                    WHERE f.category='Cyber Crime' AND f.station='Whitefield'
-                             → T07: Resolve "Whitefield" → ["Whitefield", "ITPL", "Kadugodi"]
-                             → RRF Fusion: 34 unique evidence pieces, ranked
-
-850ms    ┌─ Graph Analyzer   Community detection on accused network           T03, T04, T05, T06
-         │                   → T04: Louvain → 3 communities (possible gangs)
-         │                   → T05: PageRank → Top 5 central accused
-         │                   → T06: Shortest path between top accused → 2-hop connection
-         │                   
-850ms    ├─ Pattern Detector MO clustering on fraud descriptions              T08, T09
-         │                   → T08: HDBSCAN → 2 distinct MO clusters:
-         │                      Cluster A: "OTP phishing via fake bank calls"
-         │                      Cluster B: "QR code swap at merchant locations"
-         │                   → T09: Temporal spike in Cluster B (last 3 weeks)
-         │                   
-850ms    ├─ Behav. Profiler  Risk scoring for identified accused              T12
-         │                   → T12: 5 offender profiles retrieved
-         │                      Accused #1: Risk 87/100 (repeat offender, escalating)
-         │                      Accused #3: Risk 72/100 (new, rapid activity)
-         │                   
-850ms    └─ Financial Analyst UPI money trail analysis                        T11, T05
-                             → T11: Trace from victim accounts → 3-hop → convergence 
-                                    at 2 accounts (suspected mules)
-                             → T05: Betweenness centrality → 1 account appears in 
-                                    7/12 fraud trails (money hub)
-
-2100ms   Reasoner            Synthesize all evidence                          T15, T20
-                             → Chain-of-Thought reasoning:
-                               1. 3 Louvain communities suggest organized operation
-                               2. 2 MO clusters = 2 fraud teams or 1 team, 2 methods
-                               3. Financial convergence at 2 mule accounts
-                               4. PageRank leader (Accused #1) linked to both communities
-                               5. Temporal spike correlates with Accused #3's first appearance
-                             → Hypothesis: "Organized ring led by Accused #1, recently 
-                                expanded by recruiting Accused #3 for QR code method"
-                             → Confidence: 0.78
-                             → T15: Generate leads:
-                                Lead 1: "Investigate mule account holders (2 accounts)"
-                                Lead 2: "Check Accused #1 ↔ #3 phone/location overlap"
-                                Lead 3: "CCTV at QR-swap merchant locations"
-
-2800ms   Decision Support    Package actionable intelligence                  T13, T16, T22
-                             → T13: 2 similar case clusters found (2023 Koramangala ring)
-                             → T16: Structured summary with 12 citations
-                             → T22: Pin top 5 evidence pieces to investigation board
-                             → Recommendations:
-                               [IMMEDIATE] Freeze 2 mule accounts (RBI circular ref)
-                               [INVESTIGATE] Accused #3 associates
-                               [MONITOR] Create alert for new QR-swap reports
-
-3200ms   Reporter            Generate investigation package                   T14, T21, T23
-                             → T14: Timeline of 34 events across 90 days
-                             → T21: PDF report (12 pages, charts, network graph)
-                             → T23: Alert created: "New QR-swap fraud in Whitefield area"
-                             
-3500ms   Orchestrator        Return final InvestigationState to frontend      —
+```text
+Orchestrator: classify as complex relational query; create checkpoint
+Planner:      produce validated plan referencing T01/T02/T03/T08/T11/T13/T14/T15/T20
+Parallel engines:
+  SQL Retrieval       → jurisdiction/date/category-filtered FIR records
+  Search/Ranking      → semantic and lexical candidates, RRF/rerank
+  Graph Intelligence  → bounded paths, communities, centrality
+  Pattern Analysis    → MO and temporal clusters
+  Financial Analysis  → account flows and transaction-derived indicators
+  Behavioral Profiling→ profile features for authorized entities
+Evidence gate:        reconcile sources, validate numbers/citations/RBAC, surface conflicts
+Reasoner:             evaluate hypotheses using only validated structured results
+Lead Ranking Engine:  deterministically rank evidence-backed next steps
+Reporter (requested): produce cited summary, timeline, and package wording
 ```
 
-### What the Officer Sees (3.5 seconds later):
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 🔍 Investigation Results                                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│ Summary: Found organized UPI fraud ring operating in         │
-│ Whitefield area with 2 distinct methods (OTP phishing +      │
-│ QR swap). 3 connected communities, 12 cases linked.          │
-│ Confidence: 78%                                              │
-│                                                              │
-│ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│ │ 🕸️ Network  │  │ 📊 Timeline │  │ 💰 Money    │          │
-│ │    Graph    │  │             │  │    Trail    │          │
-│ └─────────────┘  └─────────────┘  └─────────────┘          │
-│                                                              │
-│ 🎯 Top Leads:                                               │
-│ 1. Freeze mule accounts: XXXX7834, XXXX2901                 │
-│ 2. Investigate Accused #1 ↔ #3 connection                    │
-│ 3. CCTV review at 3 merchant locations                       │
-│                                                              │
-│ 📋 Similar Past Case: Koramangala Ring (2023) — convicted   │
-│                                                              │
-│ [📥 Download PDF] [🔔 Alert Active] [📌 5 items pinned]     │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
+The officer sees an evidence board, network graph, timeline, financial trail, ranked leads, similar-case references, uncertainty, and citations. Risk, ranking, and forecast outputs are review signals—not legal or factual determinations beyond their cited source basis.
 
 ## 6. Why This Beats 100+ Teams
 
@@ -1036,119 +529,85 @@ TIME     AGENT               ACTION                                          TOO
 └─────────────────────────────────────────────────────┘
 ```
 
-### What We Build (Palantir Gotham-Level)
+### What We Build: Orchestrator plus deterministic engines
 
+```text
+Officer query
+   │
+   ├─ Exact/structured ──► deterministic SQL/Search/Graph/Timeline engine
+   │                       └─► Evidence gate ──► cited response (no LLM)
+   │
+   └─ Ambiguous/complex ─► optional Planner Agent
+                           └─► parallel deterministic engines
+                               └─► reconciliation + Evidence gate
+                                   └─► Reasoning Agent
+                                       └─► deterministic Lead Ranking Engine
+                                           └─► optional Reporter Agent
+
+Output package: evidence board • network graph • timeline • financial trail •
+ranked leads • similar cases • cited summary • authorized report artifacts
 ```
-┌──────────────────────────────────────────────────────────────────────────┐
-│  KSP INVESTIGATEAI — MULTI-AGENT ORCHESTRATION                           │
-│                                                                           │
-│  Officer Question                                                         │
-│       │                                                                   │
-│       ▼                                                                   │
-│  ┌─────────┐    Intent + Entities + Complexity                           │
-│  │ PLANNER │───────────────────────────────────┐                         │
-│  └─────────┘                                    │                         │
-│       │                                         ▼                         │
-│       ▼                                  ┌─────────────┐                 │
-│  ┌───────────┐   34 evidence pieces      │ ROUTE BY    │                 │
-│  │ COLLECTOR │◄──────────────────────────│ COMPLEXITY  │                 │
-│  └───────────┘                           └─────────────┘                 │
-│       │                                                                   │
-│       ▼ PARALLEL (5-7 tool calls simultaneously)                         │
-│  ┌─────────┬──────────┬─────────┬────────────┐                          │
-│  │ GRAPH   │ PATTERN  │ BEHAV.  │ FINANCIAL  │                           │
-│  │ANALYZER │ DETECTOR │ PROFILER│  ANALYST   │                           │
-│  └────┬────┴────┬─────┴────┬────┴─────┬──────┘                          │
-│       │         │          │          │                                   │
-│       └─────────┴────┬─────┴──────────┘                                  │
-│                      ▼                                                    │
-│              ┌────────────┐   Hypotheses + Confidence                    │
-│              │  REASONER  │   Chain-of-Thought + Citations               │
-│              └─────┬──────┘                                              │
-│                    ▼                                                      │
-│          ┌──────────────────┐   Leads + Recommendations                  │
-│          │ DECISION SUPPORT │   Similar Cases + Evidence Board            │
-│          └────────┬─────────┘                                            │
-│                   ▼                                                       │
-│            ┌────────────┐   PDF + Timeline + Alerts                      │
-│            │  REPORTER  │   Full Investigation Package                    │
-│            └─────┬──────┘                                                │
-│                  ▼                                                        │
-│  ┌───────────────────────────────────────────────────────────────┐       │
-│  │ MULTI-ARTIFACT OUTPUT:                                         │       │
-│  │  • Network graph visualization                                 │       │
-│  │  • Money trail diagram                                         │       │
-│  │  • Chronological timeline                                      │       │
-│  │  • Ranked leads with rationale                                 │       │
-│  │  • Similar case references                                     │       │
-│  │  • Downloadable PDF report                                     │       │
-│  │  • Active monitoring alerts                                    │       │
-│  │  • Pinned evidence board                                       │       │
-│  │  • Confidence score with reasoning trace                       │       │
-│  └───────────────────────────────────────────────────────────────┘       │
-│                                                                           │
-│  Total time: 3.5 seconds | Tools called: 14 | Parallel streams: 4       │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+
+The diagram shows control flow, not a promise of a fixed number of calls or a completed benchmark. Every engine result is typed, permission-checked, provenance-linked, and available for human review.
 
 ### Head-to-Head Comparison
 
 | Dimension | Other Teams | KSP InvestigateAI |
 |-----------|-------------|-------------------|
-| **Architecture** | Single LLM chain | 10-agent StateGraph |
+| **Architecture** | Single LLM chain | LangGraph orchestrator + Planner/Reasoning/Reporter stages + deterministic engines |
 | **Data Access** | Maybe RAG (1 method) | 4-way hybrid retrieval + graph |
-| **Tools** | 0-3 generic | 23 specialized, typed |
-| **Parallelism** | Sequential only | 4-way parallel fan-out |
-| **Memory** | Session only (lost on refresh) | PostgreSQL checkpoint (days/weeks) |
-| **Reasoning** | Single-shot generation | Multi-step CoT + hypothesis testing |
+| **Tools** | 0-3 generic | 23 typed and engine-backed |
+| **Parallelism** | Sequential only | Parallel deterministic-engine fan-out where permitted; benchmark pending |
+| **Memory** | Session only (lost on refresh) | Catalyst-compatible checkpoint (retention subject to validation) |
+| **Reasoning** | Single-shot generation | Grounded structured rationale + hypothesis testing |
 | **Confidence** | None (or made up) | Calibrated 0-1 with evidence support |
 | **Output** | Text in chat bubble | Multi-artifact investigation package |
 | **Verification** | None | Citations, evidence chains, traces |
 | **Domain** | Generic | KSP crime data, Karnataka geography, Kannada NLP |
-| **Latency** | 2-5s for text | 3.5s for full package (parallel) |
+| **Latency** | To be measured | Design target; benchmark before claiming |
 | **Resumability** | Start over each time | Continue where you left off |
 
 ### The Multiplier Effect
 
 ```python
 """
-Why 10 agents × 23 tools ≠ just 'more code':
+Why typed tools backed by deterministic engines matter:
 
-1. SPECIALIZATION: Each agent has a focused system prompt, 
+1. SPECIALIZATION: Each reasoning stage has a focused system prompt,
    optimized temperature, and restricted tool access.
    → Better results than one agent trying to do everything.
 
-2. PARALLELISM: 4 analyzers run simultaneously.
-   → 4x throughput without sacrificing depth.
+2. PARALLELISM: Independent engines may run simultaneously when the plan and budget permit.
+   → Parallelism is a design strategy; throughput requires measurement.
 
-3. COMPOSABILITY: Agents can be recombined for new use cases
-   without rewriting. Add a new tool? One agent gets it.
+3. COMPOSABILITY: Engines and reasoning stages can be recombined for new use cases
+   without rewriting. Add a typed tool? The orchestrator can authorize it for the relevant engine/stage.
    → O(1) feature addition, not O(n).
 
 4. AUDITABILITY: Every tool call is logged, every reasoning 
    step is traceable, every conclusion has citations.
    → Critical for law enforcement accountability.
 
-5. RESILIENCE: One agent fails? Others still produce results.
+5. RESILIENCE: One engine fails? Bounded retries and graceful degradation preserve available results.
    Graph DB down? SQL + vector still work.
    → Graceful degradation, not total failure.
 
 6. MEMORY: Officer builds up investigation over days.
-   AI accumulates evidence, refines hypotheses, tracks progress.
+   Case memory accumulates evidence, refines hypotheses, and tracks progress.
    → Compound intelligence, not stateless Q&A.
 """
 ```
 
 ---
 
-## Quick Start — Running the Agent Fleet
+## Quick Start — Running the Investigation Orchestrator
 
 ```python
-from src.agents.orchestrator import InvestigateAI
-from src.agents.config import AgentConfig
+from src.orchestration.orchestrator import InvestigateAI
+from src.orchestration.config import OrchestratorConfig
 
-# Initialize the fleet
-ai = InvestigateAI(config=AgentConfig.from_env())
+# Initialize the orchestrator
+ai = InvestigateAI(config=OrchestratorConfig.from_env())
 await ai.initialize()  # Connects to all backends
 
 # Run an investigation
@@ -1170,8 +629,8 @@ print(result.network_graph)     # Vis.js compatible graph data
 ---
 
 *This document defines the core AI architecture. For implementation details, see:*
-- `src/agents/` — Agent implementations
-- `src/tools/` — Tool registry and implementations  
+- `src/orchestration/` — Orchestration and reasoning-stage implementations
+- `src/registry/` — Tool registry and implementations
 - `src/graph/` — LangGraph state machine definition
 - `.LOCK/DATA_ARCHITECTURE.md` — Data layer powering the tools
 - `.LOCK/MASTER_PLAN.md` — Overall system design

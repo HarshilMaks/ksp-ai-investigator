@@ -1,10 +1,49 @@
 # KSP InvestigateAI — Complete Database Schema
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
 
-> Dual-store architecture: PostgreSQL (Catalyst) for structured data + vector search, Neo4j (AppSail) for graph traversal.
+
+> Catalyst Data Store is authoritative for structured and vector data (pgvector HNSW); Neo4j 5 Community on AppSail is the graph projection/query store. The raw PostgreSQL DDL below is a logical reference mapping only: extensions, triggers, and syntax require Catalyst validation and are not guaranteed deployable Catalyst schema.
 
 ---
 
-## PostgreSQL — Catalyst Data Store
+## Catalyst Data Store — Logical schema reference mapping
+
+### Engine outputs and evidence provenance
+
+The Catalyst Data Store remains authoritative for structured records and pgvector embeddings. Deterministic engines may materialize reusable outputs in `intelligence_cards` and Stratus; Neo4j is a projection/query store. Every materialized result and response claim needs provenance so the evidence gate can reproduce and qualify it.
+
+```sql
+CREATE TABLE engine_runs (
+    run_id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    engine_name         VARCHAR(80) NOT NULL,
+    tool_id              VARCHAR(3) NOT NULL, -- T01-T23
+    input_hash          VARCHAR(128) NOT NULL,
+    status              VARCHAR(20) NOT NULL,
+    output_ref          TEXT,
+    source_snapshot     JSONB NOT NULL DEFAULT '{}',
+    computed_at         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    expires_at          TIMESTAMP WITH TIME ZONE,
+    audit_metadata      JSONB NOT NULL DEFAULT '{}'
+);
+
+CREATE TABLE evidence_provenance (
+    provenance_id       UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    run_id              UUID REFERENCES engine_runs(run_id),
+    claim_id            VARCHAR(128) NOT NULL,
+    source_type         VARCHAR(40) NOT NULL, -- FIR, entity, relationship, computation
+    source_id           VARCHAR(128) NOT NULL,
+    calculation         JSONB NOT NULL DEFAULT '{}',
+    permission_scope    JSONB NOT NULL DEFAULT '{}',
+    contradiction_refs  JSONB NOT NULL DEFAULT '[]',
+    confidence          REAL CHECK (confidence >= 0.0 AND confidence <= 1.0),
+    validated_at        TIMESTAMP WITH TIME ZONE,
+    validator_version   VARCHAR(40)
+);
+```
+
+`engine_runs` and `evidence_provenance` are logical reference mappings; Catalyst syntax, indexes, retention, and deployment behavior require validation. No provenance record establishes legal sufficiency or a final human decision.
 
 ### Extensions Required
 
@@ -49,7 +88,7 @@ CREATE TABLE firs (
 );
 
 COMMENT ON TABLE firs IS 'First Information Reports - core crime records for Karnataka State Police';
-COMMENT ON COLUMN firs.narrative_vec IS '1024-dim embedding from multilingual-e5-large model';
+COMMENT ON COLUMN firs.narrative_vec IS '1024-dim dense embedding from AlpEge/bge-m3-onnx-int8 (ONNX CPU)';
 COMMENT ON COLUMN firs.modus_operandi IS 'Structured MO: {"method":"...","tools":[],"time":"...","target":"..."}';
 ```
 
@@ -235,6 +274,8 @@ COMMENT ON TABLE investigation_timeline IS 'Chronological event reconstruction f
 ---
 
 ### Table: intelligence_cards
+
+Cards are materialized outputs of deterministic engines (not agent state); each card should reference an engine run and provenance records.
 
 Pre-computed intelligence objects cached for fast retrieval.
 
@@ -1110,29 +1151,28 @@ SET r.strength = 1.0 - (toFloat(hours_diff) / 72.0),
 
 ---
 
-## Data Synchronization (PostgreSQL ↔ Neo4j)
+## Data Synchronization (Catalyst Signals → Functions → deterministic engines → projections)
 
-```
-┌──────────────┐     CDC / Debezium      ┌──────────────┐
-│  PostgreSQL  │ ──────────────────────── │    Neo4j     │
-│  (Source of  │     Event Stream         │  (Graph      │
-│   Truth)     │                          │   Projection)│
-└──────────────┘                          └──────────────┘
-       │                                         │
-       │  INSERT/UPDATE firs ──────► CREATE/SET :FIR
-       │  INSERT/UPDATE entities ──► CREATE/SET :Person/:Vehicle/...
-       │  INSERT/UPDATE relationships ► CREATE/SET relationship
-       │  Intelligence cards ──────► Subgraph annotations
-       │
-       └── PostgreSQL is authoritative; Neo4j is a read-optimized projection
+Catalyst Data Store remains authoritative for structured records and pgvector HNSW embeddings. Catalyst Signals emits data-change events; Catalyst Functions consume those events and update the Neo4j graph projection, embedding records, and precomputed intelligence cards.
+
+```text
+Catalyst Data Store
+       │ Catalyst Signals
+       ▼
+Catalyst Functions
+   ├──► Neo4j 5 Community on AppSail (graph projection)
+   ├──► pgvector HNSW embedding records in Catalyst Data Store
+   ├──► Stratus (precomputed JSONs, reports, exports)
+   └──► Catalyst Cache (hot cards and session state)
 ```
 
-### Sync Rules:
-1. **Writes** always go to PostgreSQL first
-2. **CDC stream** (Debezium/Kafka) propagates to Neo4j within 500ms
-3. **Neo4j** is eventually consistent (acceptable for graph traversal)
-4. **Computed relationships** are written to BOTH stores simultaneously
-5. **Intelligence cards** live only in PostgreSQL; Neo4j stores graph-relevant subsets
+### Sync rules
+1. Writes and authoritative reads use Catalyst Data Store.
+2. Catalyst Signals delivers change events to Functions; delivery and projection lag require measurement.
+3. Functions update Neo4j and precomputed artifacts idempotently.
+4. Intelligence cards are durable/precomputed in Stratus or Data Store as appropriate; hot copies may be held in Catalyst Cache.
+5. Raw PostgreSQL extensions, triggers, and DDL in this document remain a local/logical reference until Catalyst compatibility is validated.
+
 
 ---
 

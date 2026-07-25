@@ -1,9 +1,12 @@
 # KSP InvestigateAI — Overall System Architecture
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 > Capstone Architecture Document  
 > Version: 1.0.0  
 > Last Updated: 2026-07-23  
-> Status: LOCKED — Approved for Implementation
 
 ---
 
@@ -50,11 +53,11 @@
 │                         ORCHESTRATION LAYER                                       │
 │                                                                                  │
 │  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │  LangGraph State Machine (Multi-Agent Orchestration)                     │    │
+│  │  LangGraph Investigation Orchestrator (State Machine; not an LLM agent)                     │    │
 │  │                                                                          │    │
 │  │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────────┐    │    │
-│  │  │Supervisor│──▶│Specialist│──▶│  Tools   │──▶│ Response Synth.  │    │    │
-│  │  │  Agent   │   │  Agents  │   │ Executor │   │ (Stream/Compile) │    │    │
+│  │  │ Router  │──▶│ Planner? │──▶│ Engines  │──▶│ Evidence Gate    │    │    │
+│  │  │         │   │Reasoner │   │ T01–T23  │   │ + Reporter       │    │    │
 │  │  └──────────┘   └──────────┘   └──────────┘   └──────────────────┘    │    │
 │  │       │              │                                                   │    │
 │  │       ▼              ▼                                                   │    │
@@ -62,7 +65,7 @@
 │  │  │  External LLMs (via LiteLLM)         │                               │    │
 │  │  │  ┌───────┐  ┌────────┐  ┌─────────┐ │                               │    │
 │  │  │  │ Groq  │  │ Gemini │  │ Mistral │ │                               │    │
-│  │  │  │Llama3 │  │ Flash  │  │  Large  │ │                               │    │
+│  │  │  │Llama 3.3│ │ 2.5 Flash│ │ Small   │ │                               │    │
 │  │  │  │(fast) │  │(reason)│  │(fallbck)│ │                               │    │
 │  │  │  └───────┘  └────────┘  └─────────┘ │                               │    │
 │  │  └──────────────────────────────────────┘                               │    │
@@ -133,7 +136,7 @@
               │            │            │
        ┌──────▼───┐ ┌─────▼────┐ ┌────▼─────┐
        │ Auth     │ │ API Fns  │ │ Slate    │
-       │ (verify) │ │ (50+)    │ │ (static) │
+       │ (verify) │ │ (planned; capacity pending validation)    │ │ (static) │
        └──────────┘ └─────┬────┘ └──────────┘
                            │
           ┌────────────────┼────────────────┐
@@ -153,17 +156,29 @@
 
 ---
 
+## Execution contract: fast path, deep path, and evidence gate
+
+```text
+Exact/structured query → deterministic engine → Evidence/Explainability gate → response
+
+Ambiguous/complex/hypothesis query
+  → optional Planner → parallel deterministic engines
+  → evidence reconciliation → Reasoner → deterministic Lead Ranking → Reporter
+```
+
+The engine registry includes SQL Retrieval, Search/Ranking, Graph Intelligence, Pattern Analysis, Behavioral Profiling, Financial Analysis, Forecasting, Timeline, and Evidence/Explainability. The evidence gate validates citations, numbers, permissions, contradictions, confidence, and missing evidence. Exact lookups do not call an LLM. Any scale, latency, quality, or cost figure in this document is a design target pending measured validation.
+
 ## 2. Deployment Topology
 
-### Catalyst Functions (50+ Python Functions)
+### Catalyst Functions (planned Python Functions)
 
 | Category | Count | Purpose | Trigger |
 |----------|-------|---------|---------|
-| API/BFF Endpoints | 12 | Capability and resource REST handlers; SSE run streams | HTTP (API Gateway) |
-| Agent Nodes | 8 | LangGraph state machine nodes | Internal invocation |
+| API/BFF handlers | Planned | Capability/resource REST handlers; run lifecycle and SSE streams | HTTP (API Gateway) |
+| Orchestration | 1 state machine + 3 reasoning stages | Planner (optional), Reasoner, Reporter; deterministic engines compute facts | Internal invocation |
 | Intelligence Jobs | 6 | Pre-computation engines | Cron (scheduled) |
 | Signal Handlers | 7 | Event-driven processors | Signals (data events) |
-| Tool Functions | 23 | Investigation capabilities | Agent orchestration |
+| Internal typed tools | T01–T23 | Investigation capabilities; not public routes | Orchestrator control |
 | Circuit Steps | 4 | Multi-step workflows | Circuits (workflow) |
 
 **Runtime Configuration:**
@@ -278,8 +293,8 @@
 2. API Gateway routes to appropriate Function endpoint
 3. Catalyst Auth validates JWT, extracts user role + permissions
 4. API Function initializes LangGraph with user context + conversation history
-5. Supervisor agent analyzes intent, routes to specialist(s)
-6. Specialist agents invoke tools (parallel where possible)
+5. LangGraph orchestrator analyzes intent and routes to reasoning stages and deterministic engines
+6. The orchestrator invokes typed tools backed by deterministic engines (parallel where permitted; measure actual concurrency)
 7. Tools execute queries across Neo4j, Data Store, Vector index
 8. Results aggregated into structured context window
 9. LLM synthesizes response with citations
@@ -350,17 +365,17 @@
 
 ## 4. Performance Architecture
 
-### Latency Targets
+### Latency Targets (design targets pending benchmark)
 
-| Operation | Target (P99) | Strategy |
+| Operation | Acceptance target (P99, pending benchmark) | Strategy |
 |-----------|-------------|----------|
-| Vector retrieval | <200ms | Pre-computed embeddings + cosine similarity in Neo4j |
-| Graph traversal | <100ms | Indexed properties, bounded depth, cached subgraphs |
-| LLM first token | <500ms | Groq (Llama3-70B) with speculative decoding |
-| Intelligence card | <50ms | Pre-computed JSON from Cache/Stratus |
-| Full query response | <3s | Parallel tool execution + streaming |
-| FIR search (ZCQL) | <150ms | Indexed columns, query optimization |
-| Entity resolution | <200ms | ONNX model (in-process, no network hop) |
+| Vector retrieval | Design target; measure | Pre-computed BGE-M3 embeddings + pgvector HNSW in Catalyst Data Store |
+| Graph traversal | Design target; measure | Indexed properties, bounded depth, cached subgraphs |
+| LLM first token | Design target; measure | Groq Llama 3.3 70B with streaming |
+| Intelligence card | Design target; measure | Pre-computed JSON from Cache/Stratus |
+| Full query response | Design target; measure | Parallel tool execution + streaming |
+| FIR search (ZCQL) | Design target; measure | Indexed columns, query optimization |
+| Entity resolution | Design target; measure | ONNX model (in-process, no network hop) |
 
 ### Caching Architecture (3-Layer)
 
@@ -622,7 +637,7 @@ def create_audit_entry(action: dict, prev_hash: str) -> dict:
 │  Catalyst Functions (Serverless)                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  • Auto-scaled by platform (no configuration needed)     │    │
-│  │  • Cold start: ~2s (Python + dependencies)              │    │
+│  │  • Cold start: design estimate; measure on Catalyst     │    │
 │  │  • Warm instances reused for subsequent requests         │    │
 │  │  • Concurrency: Platform-managed (burst capable)        │    │
 │  │  • Strategy: Keep functions lean, offload state          │    │
@@ -681,8 +696,8 @@ Storage Budget (Free Tier):
 | Phase | FIRs | Action |
 |-------|------|--------|
 | Hackathon | 500 (synthetic) | Single instance, no optimization needed |
-| Pilot | 5,000 (1 station) | Basic indexing, daily pre-computation |
-| District | 50,000 (10 stations) | Full caching, read replica consideration |
+| Pilot | Initial sizing estimate; validate | Basic indexing, daily pre-computation |
+| District | Initial sizing estimate; validate | Full caching, Catalyst capacity validation |
 | State | 500,000+ (future) | Sharding, dedicated infrastructure, paid tier |
 
 ---
@@ -711,7 +726,7 @@ Storage Budget (Free Tier):
 │  │  ┌─────────────────────────────────────────────┐  │          │
 │  │  │  LangGraph Trace Logger                      │  │          │
 │  │  │                                              │  │          │
-│  │  │  • Agent routing decisions                   │  │          │
+│  │  │  • Orchestrator routing decisions                   │  │          │
 │  │  │  • Tool invocations + latency               │  │          │
 │  │  │  • LLM token usage (per model)              │  │          │
 │  │  │  • Context window utilization               │  │          │
@@ -738,9 +753,9 @@ Storage Budget (Free Tier):
 | Metric | Warning | Critical | Action |
 |--------|---------|----------|--------|
 | Function error rate | >5% | >15% | Alert → investigate logs |
-| LLM latency (P95) | >3s | >8s | Switch to faster model / reduce context |
-| Neo4j query time | >500ms | >2s | Check query plan, add indexes |
-| Cache hit ratio | <60% | <40% | Review TTL, pre-warm strategy |
+| LLM latency (P95) | Initial alert threshold; validate | Initial escalation threshold; validate | Switch to faster model / reduce context |
+| Neo4j query time | Initial alert threshold; validate | Initial escalation threshold; validate | Check query plan, add indexes |
+| Cache hit ratio | Initial warning threshold; validate | Initial critical threshold; validate | Review TTL, pre-warm strategy |
 | Daily API calls | >80% free tier | >90% free tier | Budget alert email |
 | AppSail memory | >80% (410MB) | >90% (460MB) | Restart / tune heap |
 | Data Store usage | >70% (1.4GB) | >85% (1.7GB) | Archive old data |
@@ -790,7 +805,7 @@ ALERT_CHANNELS = {
     {"name": "vector_search", "latency_ms": 145, "results": 5}
   ],
   "llm_calls": [
-    {"model": "groq/llama3-70b", "tokens_in": 2400, "tokens_out": 580, "latency_ms": 1200}
+    {"model": "groq/llama-3.3-70b-versatile", "tokens_in": 2400, "tokens_out": 580, "latency_ms": 1200}
   ],
   "total_latency_ms": 2100,
   "cache_hits": 3,
@@ -813,29 +828,31 @@ ksp-investigate-ai/
 │
 ├── functions/                       # All Catalyst Functions (Python 3.11)
 │   │
-│   ├── api/                         # REST API Endpoints (12 functions)
-│   │   ├── chat_handler.py          #   POST /api/chat — Main AI interaction
-│   │   ├── chat_stream.py           #   GET  /api/chat/stream — SSE endpoint
-│   │   ├── fir_api.py               #   CRUD /api/firs — FIR management
-│   │   ├── entity_api.py            #   GET  /api/entities — Entity lookup
-│   │   ├── graph_api.py             #   GET  /api/graph — Graph visualization data
-│   │   ├── intelligence_api.py      #   GET  /api/intelligence — Intel cards
-│   │   ├── search_api.py            #   GET  /api/search — Unified search
-│   │   ├── analytics_api.py         #   GET  /api/analytics — Dashboard stats
-│   │   ├── alerts_api.py            #   GET  /api/alerts — User notifications
-│   │   ├── audit_api.py             #   GET  /api/audit — Audit log access (SP only)
-│   │   ├── user_api.py              #   CRUD /api/users — User management
-│   │   └── health_api.py            #   GET  /api/health — System health check
+│   ├── api/                         # Catalyst API Gateway REST handlers
+│   │   ├── investigation_runs.py    # POST /api/v1/investigations/{id}/runs; run lifecycle
+│   │   ├── capability_api.py        # POST capability routes (query, network, profile, similar, hypothesis, report)
+│   │   ├── resource_api.py          # Resource REST for investigations, evidence, timeline, notes, reports
+│   │   ├── sse_api.py               # GET /api/v1/runs/{run_id}/events; cookie/fetch-authenticated SSE
+│   │   ├── upload_api.py            # Multipart voice/audio and document uploads
+│   │   └── alert_api.py             # Alert resources and SSE alert lifecycle
 │   │
-│   ├── agents/                      # LangGraph Agent Nodes (8 functions)
-│   │   ├── supervisor.py            #   Routes queries to specialists
-│   │   ├── case_analyst.py          #   FIR analysis & summarization
-│   │   ├── network_analyst.py       #   Criminal network exploration
-│   │   ├── temporal_analyst.py      #   Time-pattern analysis
-│   │   ├── geographic_analyst.py    #   Spatial/hotspot analysis
-│   │   ├── risk_assessor.py         #   Threat & risk evaluation
-│   │   ├── osint_agent.py           #   Open-source intelligence
-│   │   └── response_synthesizer.py  #   Final response compilation
+│   ├── orchestration/                # LangGraph state machine + reasoning stages (internal)
+│   │   ├── orchestrator.py          # LangGraph state machine; routing/checkpoints/SSE
+│   │   ├── planner_stage.py         # Optional ambiguity/complexity planning
+│   │   ├── reasoner_stage.py        # Grounded synthesis and hypothesis evaluation
+│   │   └── reporter_stage.py        # Evidence-gated communication and report wording
+│   │
+│   ├── engines/                     # Deterministic computation modules
+│   │   ├── sql_retrieval.py         # Structured retrieval and aggregates
+│   │   ├── search_ranking.py        # Vector/BM25/RRF/reranking
+│   │   ├── graph_intelligence.py    # Traversal, paths, communities, centrality
+│   │   ├── pattern_analysis.py      # MO, anomalies, temporal patterns
+│   │   ├── behavioral_profiling.py  # Profile features and review signals
+│   │   ├── financial_analysis.py    # Account flows and transaction indicators
+│   │   ├── forecasting.py           # Forecasts and uncertainty
+│   │   ├── timeline.py              # Chronology and gap detection
+│   │   ├── lead_ranking.py          # Deterministic lead ranking
+│   │   └── evidence.py              # Citations, permissions, contradictions, confidence
 │   │
 │   ├── intelligence/                # Cron-triggered Intelligence Jobs (6 functions)
 │   │   ├── network_analysis.py      #   Community detection & centrality
@@ -854,30 +871,10 @@ ksp-investigate-ai/
 │   │   ├── audit_logger.py          #   Any action → hash-chained log entry
 │   │   └── intelligence_refresh.py  #   Entity update → mark cards stale
 │   │
-│   ├── tools/                       # Investigation Tools (23 functions)
-│   │   ├── graph_traverse.py        #   Multi-hop graph exploration
-│   │   ├── graph_shortest_path.py   #   Path finding between entities
-│   │   ├── graph_community.py       #   Community detection (GDS)
-│   │   ├── graph_centrality.py      #   Centrality metrics (GDS)
-│   │   ├── vector_search.py         #   Semantic similarity search
-│   │   ├── fir_search.py            #   Full-text FIR search (ZCQL)
-│   │   ├── entity_resolve.py        #   Entity resolution & dedup
-│   │   ├── entity_profile.py        #   Comprehensive entity dossier
-│   │   ├── timeline_builder.py      #   Chronological event assembly
-│   │   ├── temporal_query.py        #   Time-range filtering
-│   │   ├── hotspot_query.py         #   Geographic area analysis
-│   │   ├── pattern_match.py         #   Subgraph pattern matching
-│   │   ├── risk_calculate.py        #   Real-time risk score
-│   │   ├── link_predict.py          #   ML-based link prediction
-│   │   ├── modus_operandi.py        #   Crime method clustering
-│   │   ├── network_expand.py        #   Expand criminal network view
-│   │   ├── witness_correlate.py     #   Cross-reference witnesses
-│   │   ├── vehicle_trace.py         #   Vehicle mention tracking
-│   │   ├── phone_network.py         #   Phone number link analysis
-│   │   ├── osint_lookup.py          #   Public data search (SmartBrowz)
-│   │   ├── statute_lookup.py        #   IPC/BNS section reference
-│   │   ├── report_generate.py       #   Structured report builder
-│   │   └── summary_generate.py      #   Case summary synthesis
+│   ├── registry/                    # Internal typed T01–T23 tool registry
+│   │   ├── schemas.py               # Pydantic inputs/outputs and authorization context
+│   │   ├── dispatch.py               # Tool-to-engine dispatch and audit metadata
+│   │   └── tools.py                  # T01–T23 definitions; not public routes
 │   │
 │   ├── circuits/                    # Workflow Steps (4 functions)
 │   │   ├── bulk_ingest_step.py      #   Batch FIR processing
@@ -959,7 +956,7 @@ ksp-investigate-ai/
 ├── .LOCK/                           # Architecture Documentation
 │   ├── architecture.md              #   THIS FILE — System architecture
 │   ├── data-model.md                #   Graph & relational schema
-│   ├── agent-design.md              #   LangGraph agent architecture
+│   ├── orchestration-design.md       #   LangGraph orchestrator and reasoning stages
 │   ├── api-spec.md                  #   REST API specification
 │   └── deployment.md                #   Deployment & operations guide
 │
@@ -1028,7 +1025,7 @@ ksp-investigate-ai/
 
 The external boundary uses Catalyst API Gateway for authentication, RBAC, throttling, and routing. REST APIs are capability-oriented for investigation actions and resource-oriented for workspace state. Complex investigations create a run with REST and stream progress through SSE; simple lookups may return synchronously. Voice and document inputs use multipart REST.
 
-The LangGraph engine and its internal typed Python Tool Registry are not exposed as public REST endpoints. Agents call typed tools directly; tools enforce authorization context, schemas, query limits, citations, and audit events. WebSockets are deferred until collaborative editing or presence is required. gRPC is reserved for a future split into independent internal services, and MCP is an optional interoperability adapter rather than a runtime dependency.
+Catalyst API Gateway exposes capability-oriented and resource REST routes; the LangGraph engine and its internal typed Python Tool Registry are not public endpoints. The orchestrator and permitted reasoning stages call typed tools; tools enforce authorization context, schemas, query limits, citations, and audit events. WebSockets are deferred until collaborative editing or presence is required. gRPC is reserved for a future split into independent internal services, and MCP is an optional interoperability adapter rather than a runtime dependency.
 
 | Aspect | Detail |
 |--------|--------|
@@ -1038,15 +1035,18 @@ The LangGraph engine and its internal typed Python Tool Registry are not exposed
 | Base URL | `https://{project}.catalyst.com/api/` |
 | Versioning | Path-based (`/api/v1/...`) |
 | Error format | `{ "error": { "code": "ERR_XXX", "message": "...", "details": {} } }` |
-| Rate limiting | Per-role: IO (100/min), Analyst (200/min), SP (unlimited) |
+| Rate limiting | Per-role limits are configuration targets pending Catalyst validation |
 | CORS | Catalyst-managed, Slate domain whitelisted |
 
 **SSE Connection:**
 ```javascript
-// Frontend SSE client
-const eventSource = new EventSource('/api/chat/stream?session_id=xxx', {
-  headers: { 'Authorization': `Bearer ${token}` }
-});
+// Cookie-authenticated SSE; native EventSource cannot set Authorization headers.
+const eventSource = new EventSource(
+  `/api/v1/runs/${runId}/events`,
+  { withCredentials: true }
+);
+// If bearer-only auth is required, use a fetch-based SSE client that sends
+// Authorization explicitly; do not pass headers to native EventSource.
 
 eventSource.addEventListener('token', (e) => appendToken(e.data));
 eventSource.addEventListener('tool_start', (e) => showToolLoading(e.data));
@@ -1121,9 +1121,9 @@ def query_firs(station_id: str, date_from: str):
 | Aspect | Detail |
 |--------|--------|
 | Library | LiteLLM (unified interface) |
-| Primary model | `groq/llama3-70b-8192` (fast inference) |
-| Reasoning model | `gemini/gemini-2.0-flash` (complex analysis) |
-| Fallback model | `mistral/mistral-large-latest` (reliability) |
+| Primary model | `groq/llama-3.3-70b-versatile` (primary) |
+| Reasoning model | `gemini/gemini-2.5-flash` (secondary) |
+| Fallback model | `mistral/mistral-small-latest` (tertiary) |
 | Streaming | Enabled (async generator) |
 | Max tokens | 4096 (response), 8192 (context window budget) |
 | Temperature | 0.1 (factual), 0.4 (analysis), 0.7 (creative summaries) |
@@ -1134,9 +1134,9 @@ import litellm
 from litellm import acompletion
 
 MODEL_CHAIN = [
-    "groq/llama3-70b-8192",        # Primary: fast
-    "gemini/gemini-2.0-flash",      # Secondary: capable
-    "mistral/mistral-large-latest", # Fallback: reliable
+    "groq/llama-3.3-70b-versatile", # Primary
+    "gemini/gemini-2.5-flash",       # Secondary
+    "mistral/mistral-small-latest",  # Tertiary
 ]
 
 async def llm_call(messages: list, stream: bool = True, **kwargs):
@@ -1164,7 +1164,7 @@ async def llm_call(messages: list, stream: bool = True, **kwargs):
 | Models | NER (token classification), Embeddings (sentence-transformers) |
 | Loading | Lazy load on first use, cached in L1 memory |
 | Storage | Stratus (downloaded to /tmp on cold start) |
-| Inference | Synchronous (single-threaded, ~10-50ms) |
+| Inference | Synchronous (single-threaded; latency pending benchmark) |
 
 **Inference Pattern:**
 ```python
@@ -1340,10 +1340,10 @@ def get_intelligence_card(card_type: str, entity_id: str) -> dict:
 
 KSP InvestigateAI is a fully serverless, AI-powered criminal investigation platform built on Zoho Catalyst. The architecture prioritizes:
 
-- **Speed**: Pre-computed intelligence + streaming responses for sub-second UX
-- **Intelligence**: Multi-agent AI with 23 specialized tools and graph-powered analysis
+- **Speed**: Pre-computed intelligence + streaming responses for streaming UX; benchmark target pending measurement
+- **Intelligence**: LangGraph orchestrator with 23 typed tools backed by deterministic engines and graph intelligence
 - **Security**: Role-based access, immutable audit trails, and encryption throughout
-- **Cost**: Entirely within Catalyst free tier (serverless = pay-per-use at $0)
+- **Cost**: Uses Catalyst free tier where available plus the $250 trial credits; actual cost depends on measured usage
 - **Scalability**: From hackathon demo (500 FIRs) to district deployment (50K FIRs) without architecture changes
 
 The system transforms raw FIR data into actionable intelligence through a pipeline of entity extraction, graph construction, algorithmic analysis, and AI-powered reasoning — enabling Karnataka State Police officers to uncover hidden patterns and solve cases faster.
@@ -1351,4 +1351,4 @@ The system transforms raw FIR data into actionable intelligence through a pipeli
 ---
 
 *Document generated for KSP InvestigateAI — Catalyst Hackathon 2026*  
-*Architecture Version: 1.0.0 | Status: LOCKED*
+*Architecture Version: 1.0.0 | Derived from locked decisions*

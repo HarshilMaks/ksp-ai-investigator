@@ -1,4 +1,8 @@
 # The Investigation Engine Core
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 > KSP InvestigateAI — Investigation Intelligence System
 > Last Updated: 2026-07-23
@@ -7,41 +11,25 @@
 
 ## Case Memory (Persistent State)
 
-### LangGraph PostgreSQL Checkpointer
+### Catalyst-compatible checkpoint adapter
 
-Investigation state survives across sessions. An officer returns tomorrow — AI knows: active case, pinned evidence, hypotheses, last query.
+Investigation state survives across sessions through a Catalyst-compatible LangGraph checkpoint adapter backed by Catalyst Data Store, with Catalyst Cache for hot session state. This adapter is the locked deployment direction and must be validated against Catalyst APIs.
 
 ```python
-from langgraph.checkpoint.postgres import PostgresSaver
+class CatalystCheckpointAdapter:
+    async def put(self, thread_id: str, state: dict) -> None:
+        # Versioned checkpoint written through the Catalyst SDK.
+        ...
 
-checkpointer = PostgresSaver(
-    connection_string=os.environ["DATABASE_URL"],
-    schema="investigation_state"
-)
+    async def get(self, thread_id: str) -> dict | None:
+        # Cache first, then Catalyst Data Store.
+        ...
 
-class InvestigationState(TypedDict):
-    """Persistent state for each investigation session."""
-    investigation_id: str
-    officer_id: str
-    active_case_ids: list[str]          # FIRs currently under investigation
-    pinned_entities: list[PinnedEntity]  # Entities on the evidence board
-    hypotheses: list[Hypothesis]         # Active hypotheses being evaluated
-    timeline: list[TimelineEvent]        # Chronological events discovered
-    leads: list[Lead]                    # Generated leads (prioritized)
-    evidence_collected: list[Evidence]   # All evidence gathered
-    last_query: str                      # Last officer query
-    last_activity: datetime              # Timestamp of last interaction
-    session_history: list[Message]       # Conversation context
-    
-# Graph definition with persistent checkpointing
-investigation_graph = StateGraph(InvestigationState)
-investigation_graph.add_node("retrieve", retrieve_node)
-investigation_graph.add_node("reason", reasoning_node)
-investigation_graph.add_node("generate", generation_node)
-investigation_graph.add_node("update_board", evidence_board_node)
-
+checkpointer = CatalystCheckpointAdapter()
 app = investigation_graph.compile(checkpointer=checkpointer)
 ```
+
+For local development only, LangGraph's PostgreSQL saver can serve as a reference implementation. It is not a locked deployment dependency; any use requires Catalyst compatibility validation before promotion.
 
 ### Session Continuity
 
@@ -67,6 +55,15 @@ async def resume_investigation(officer_id: str, investigation_id: str):
 ```
 
 ---
+
+## Orchestrated investigation flow
+
+The Investigation Orchestrator is a LangGraph state machine, not an LLM agent. It restores case memory, classifies the request, and selects:
+
+- **Fast path:** exact/structured query → deterministic SQL Retrieval, Search/Ranking, Graph Intelligence, or Timeline Engine → Evidence/Explainability gate → cited response; no LLM when unnecessary.
+- **Deep path:** optional Planner Agent → parallel deterministic engines (SQL, search, graph, pattern, behavioral, financial, forecasting, timeline) → evidence reconciliation/gate → Reasoning Agent → deterministic Lead Ranking Engine → Reporter Agent for communication or package wording.
+
+Tools T01–T23 are typed internal registry entries that invoke engines; they are not public routes and engines are not agents. The gate validates citations, numbers, permissions, contradictions, confidence, and missing evidence before release. Humans review consequential conclusions.
 
 ## Hypothesis Mode
 
@@ -97,7 +94,7 @@ class HypothesisEvaluation(BaseModel):
     suggested_actions: list[str]  # What to investigate next
     
     # Explainability
-    reasoning_chain: list[ReasoningStep]
+    structured_rationale: list[ReasoningStep]
     alternative_explanations: list[str]
 
 class MissingEvidence(BaseModel):
@@ -327,8 +324,8 @@ class EvidenceBoardAlertSystem:
 ### Evidence-Gap Reasoning
 
 ```python
-class LeadGenerator:
-    """Generate actionable leads by reasoning over evidence gaps."""
+class LeadRankingEngine:
+    """Deterministically rank evidence-backed leads; optional LLM explanation is downstream."""
     
     async def generate_leads(self, state: InvestigationState) -> list[Lead]:
         """Analyze current evidence → identify gaps → generate prioritized leads."""
@@ -350,7 +347,7 @@ class LeadGenerator:
                 evidence=gap.related_evidence,
                 expected_outcome=gap.expected_outcome,
                 confidence=gap.confidence,
-                reasoning=gap.reasoning_chain,
+                reasoning=gap.structured_rationale,
                 status="open",
                 generated_at=datetime.now(IST),
             )
@@ -409,13 +406,13 @@ PRIORITY_RULES = {
 
 ---
 
-## Decision Support
+## Decision Support: Deterministic Lead Ranking
 
 ### Similar Past Cases with Outcomes
 
 ```python
-class DecisionSupportEngine:
-    """Provide evidence-based decision support for investigators."""
+class LeadRankingEngine:
+    """Rank evidence-based leads and similar-case signals for investigator review."""
     
     async def get_similar_cases_with_outcomes(
         self, current_case: InvestigationState
@@ -452,7 +449,7 @@ class RiskScorer:
     """Multi-dimensional risk scoring for investigation prioritization."""
     
     async def compute_risk(self, investigation: InvestigationState) -> RiskScore:
-        """Compute risk score: offender + location + time."""
+        """Compute risk signal: offender + location + time."""
         
         # Offender risk (recidivism, escalation pattern, network centrality)
         offender_risk = await self.score_offender_risk(
@@ -561,9 +558,9 @@ class ActionRecommender:
 │              └──────────────────┘                            │
 │                         │                                    │
 │                         ▼                                    │
-│              Decision Support                                │
+│        Deterministic Lead Ranking Engine                    │
 │              ┌──────────────────┐                            │
-│              │ Risk Score       │                            │
+│              │ Risk Signal       │                            │
 │              │ Past Outcomes    │                            │
 │              │ Next Actions     │                            │
 │              └──────────────────┘                            │
@@ -572,7 +569,7 @@ class ActionRecommender:
 │  New FIR → Match pinned entities → Alert officer             │
 │                                                              │
 │  ◄── Persistence ──────────────────────────────────────►    │
-│  PostgreSQL Checkpointer → State survives across sessions    │
+│  Catalyst checkpoint adapter → State survives across sessions    │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```

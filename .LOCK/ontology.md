@@ -1,4 +1,8 @@
 # KSP InvestigateAI — Investigation Ontology
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 > The semantic layer that models every noun (entity), verb (action), relationship, rule, and permission in the crime investigation domain.
 
@@ -6,12 +10,12 @@
 
 ## Philosophy: Ontology-First Architecture
 
-Palantir Gotham's core insight: **build the ontology FIRST**, then let agents operate on the governed layer. Agents never touch raw data — they query, traverse, and mutate the ontology. The ontology IS the world model.
+Palantir Gotham's core insight: **build the ontology FIRST**, then let the orchestrator and typed engines operate on the governed layer. Reasoning stages never touch raw data directly — typed tools query governed ontology projections. The ontology IS the world model.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    AGENT LAYER                           │
-│   (Investigator Agent, Analyst Agent, Patrol Agent)     │
+│           ORCHESTRATOR + REASONING STAGES              │
+│       (Planner? / Reasoner / Reporter)                  │
 ├─────────────────────────────────────────────────────────┤
 │                 ONTOLOGY LAYER                           │
 │  ┌──────────┐ ┌──────────────┐ ┌──────────┐            │
@@ -21,13 +25,17 @@ Palantir Gotham's core insight: **build the ontology FIRST**, then let agents op
 │  │ Actions  │ │ Permissions  │                         │
 │  └──────────┘ └──────────────┘                         │
 ├─────────────────────────────────────────────────────────┤
-│              DATA LAYER (PostgreSQL + Neo4j)             │
+│              DATA LAYER (Catalyst Data Store + Neo4j)             │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Layer 1: Entity Layer (15 Entity Types)
+## Demo governance and vocabulary
+
+The canonical demo RBAC roles are SHO, IO, DCP, Analyst, and SP; a deeper production hierarchy is future scope. The MVP vocabulary is the entity/relationship subset used by the database schema; expanded entities and relationships below are optional future extensions. Risk, prediction, biometric, and similarity outputs are decision-support signals for human review, not determinations.
+
+## Layer 1: Entity Layer (canonical MVP plus optional extensions)
 
 Every noun in the investigation domain. Each entity has attributes, a canonical form, and resolution rules for deduplication.
 
@@ -101,36 +109,39 @@ Every relationship MUST reference at least one FIR ID as evidence. Relationships
 
 ---
 
-## Layer 3: Action Layer (23 Tools as Verbs)
+## Layer 3: Action Layer (canonical T01-T23 typed registry)
 
-Every action the system can perform, modeled as ontology verbs.
+### Engine ownership of actions
 
-| # | Action (Tool) | Input Ontology Objects | Output Ontology Objects | Side Effects |
-|---|--------------|----------------------|------------------------|--------------|
-| 1 | `search_firs` | query string, filters | FIR[] | audit_log entry |
-| 2 | `semantic_search` | natural language query | FIR[] (ranked by similarity) | audit_log entry |
-| 3 | `get_fir_details` | FIR | FIR (full) + Entity[] | audit_log entry |
-| 4 | `extract_entities` | FIR narrative | Entity[] + Relationship[] | creates entities, links |
-| 5 | `resolve_entity` | Entity (raw) | Entity (canonical) | merge if duplicate |
-| 6 | `find_connections` | Entity | Relationship[] + Entity[] | none |
-| 7 | `expand_network` | Entity, depth | Graph subgraph | none |
-| 8 | `compute_co_accused` | Person | Person[] + strength | creates CO_ACCUSED_WITH |
-| 9 | `detect_patterns` | FIR[] | Pattern[] | creates intelligence_card |
-| 10 | `predict_hotspots` | Location, timerange | HotspotCard[] | creates intelligence_card |
-| 11 | `score_offender` | Person | OffenderProfile | creates intelligence_card |
-| 12 | `trace_financial` | BankAccount/UPI | FinancialTrail | creates intelligence_card |
-| 13 | `find_similar_cases` | FIR | SimilarCaseCard[] | creates intelligence_card |
-| 14 | `generate_network_card` | Person/Organization | NetworkIntelligenceCard | creates intelligence_card |
-| 15 | `create_investigation` | title, FIR | Investigation | audit_log entry |
-| 16 | `add_evidence` | Investigation, Entity/FIR | InvestigationEvidence | audit_log entry |
-| 17 | `build_timeline` | Investigation | InvestigationTimeline[] | none |
-| 18 | `generate_report` | Investigation | Document (PDF) | audit_log entry |
-| 19 | `alert_similar_crime` | FIR | Alert → Users | notification |
-| 20 | `escalate_case` | FIR, reason | FIR (updated priority) | notification to superior |
-| 21 | `link_cases` | FIR, FIR | Relationship (TEMPORAL_PROXIMITY/SAME_MO) | creates relationship |
-| 22 | `verify_relationship` | Relationship | Relationship (verified: true) | audit_log entry |
-| 23 | `query_ontology` | SPARQL-like query | Mixed results | audit_log entry |
+T01–T23 remain typed internal tools, not agents or public routes. Each tool delegates to a deterministic engine: SQL Retrieval (T01), Search/Ranking (T02/T13), Graph Intelligence (T03–T06), Pattern Analysis (T08/T09), Forecasting (T10/T17), Financial Analysis (T11), Behavioral Profiling (T12), Timeline (T14), Lead Ranking (T15), Reporter output (T16/T21/T23 where applicable), and Evidence/Explainability (T20/T22). The orchestrator controls execution; Planner/Reasoner/Reporter are the only LLM reasoning stages.
 
+Every runtime action maps to one of the 23 internal T01-T23 typed tools in AGENTS.md. The ontology is a governed vocabulary implemented through Catalyst Data Store, Neo4j, and the typed registry; it is not a public query endpoint.
+
+| # | Ontology action | Canonical registry tool | Input Ontology Objects | Output Ontology Objects | Side Effects |
+|---|-----------------|------------------------|----------------------|------------------------|--------------|
+| 1 | `search_firs` | T01 `sql_query` | query string, filters | FIR[] | audit_log entry |
+| 2 | `semantic_search` | T02 `vector_search` | natural language query | FIR[] (ranked by similarity) | audit_log entry |
+| 3 | `get_fir_details` | T01 `sql_query` | FIR | FIR (full) + Entity[] | audit_log entry |
+| 4 | `extract_entities` | T07 `entity_resolve` (pipeline) | FIR narrative | Entity[] + Relationship[] | creates entities, links |
+| 5 | `resolve_entity` | T07 `entity_resolve` | Entity (raw) | Entity (canonical) | merge if duplicate |
+| 6 | `find_connections` | T03 `graph_traverse` | Entity | Relationship[] + Entity[] | none |
+| 7 | `expand_network` | T03 `graph_traverse` | Entity, depth | Graph subgraph | none |
+| 8 | `compute_co_accused` | T03 `graph_traverse` | Person | Person[] + strength | creates CO_ACCUSED_WITH |
+| 9 | `detect_patterns` | T08 `pattern_match` | FIR[] | Pattern[] | creates intelligence_card |
+| 10 | `predict_hotspots` | T10 `hotspot_detect` | Location, timerange | HotspotCard[] | creates intelligence_card |
+| 11 | `score_offender` | T12 `offender_profile` | Person | OffenderProfile | creates intelligence_card |
+| 12 | `trace_financial` | T11 `financial_trail` | BankAccount/UPI | FinancialTrail | creates intelligence_card |
+| 13 | `find_similar_cases` | T13 `similar_cases` | FIR | SimilarCaseCard[] | creates intelligence_card |
+| 14 | `generate_network_card` | T03/T05 graph tools | Person/Organization | NetworkIntelligenceCard | creates intelligence_card |
+| 15 | `create_investigation` | future capability (workspace resource) | title, FIR | Investigation | audit_log entry |
+| 16 | `add_evidence` | T22 `pin_evidence` | Investigation, Entity/FIR | InvestigationEvidence | audit_log entry |
+| 17 | `build_timeline` | T14 `timeline_build` | Investigation | InvestigationTimeline[] | none |
+| 18 | `generate_report` | T21 `generate_report` | Investigation | Document (PDF) | audit_log entry |
+| 19 | `alert_similar_crime` | T23 `alert_create` | FIR | Alert → Users | notification |
+| 20 | `escalate_case` | T23 `alert_create` | FIR, reason | FIR (updated priority) | notification to superior |
+| 21 | `link_cases` | T13 `similar_cases` + T03 `graph_traverse` | FIR, FIR | Relationship (TEMPORAL_PROXIMITY/SAME_MO) | creates relationship |
+| 22 | `verify_relationship` | T20 `explain_reasoning` | Relationship | Relationship (verified: true) | audit_log entry |
+| 23 | `alert_create` | T23 `alert_create` | Alert payload | Alert → Users | Catalyst Signals event + audit_log entry |
 ---
 
 ## Layer 4: Rule Layer (Investigation Rules)
@@ -173,7 +184,13 @@ Automated rules that fire when ontology state changes.
 
 Role-Based Access Control mapped directly to ontology objects.
 
-### Roles
+### Canonical demo roles
+
+The demo exposes exactly five RBAC roles: **SHO, IO, DCP, Analyst, and SP**. Production hierarchy and counts are not part of the demo baseline.
+
+### Expanded production hierarchy (future/optional)
+
+The following hierarchy is retained as a future design reference and requires policy validation.
 
 | Role | Description | Count (typical) |
 |------|-------------|-----------------|
@@ -187,6 +204,8 @@ Role-Based Access Control mapped directly to ontology objects.
 | `DGP` | Director General | 1 |
 | `ANALYST` | Crime analyst (non-sworn) | ~100 |
 | `ADMIN` | System administrator | ~5 |
+
+### Expanded permission matrix (future/optional; demo uses the five roles above)
 
 ### Permission Matrix
 
@@ -371,14 +390,14 @@ These are materialized views of the ontology — computed periodically and cache
 
 ---
 
-## How Agents Query the Ontology vs Raw Data
+## How the Orchestrator and Engines Query the Ontology vs Raw Data
 
-### Ontology Queries (Preferred — 95% of agent actions)
+### Ontology Queries (preferred; usage share is a target pending measurement)
 
-Agents interact with the **ontology layer** through structured queries:
+The orchestrator routes typed tools to the **ontology layer** through structured queries:
 
 ```
-# Agent asks: "Who are the associates of suspect Ramesh Kumar?"
+# Orchestrator routes: "Who are the associates of suspect Ramesh Kumar?"
 ONTOLOGY QUERY:
   MATCH (p:Person {canonical: "RAMESH KUMAR"})
   TRAVERSE [CO_ACCUSED_WITH | SHARES_PHONE_WITH | SHARES_VEHICLE_WITH] depth=2
@@ -394,7 +413,7 @@ The ontology handles:
 - ✅ Audit logging (records who queried what)
 - ✅ Pre-computed intelligence (returns cached NetworkIntelligenceCard if available)
 
-### Raw Data Queries (Rare — 5% of agent actions)
+### Raw Data Queries (rare by design; usage share is a target pending measurement)
 
 Only when:
 1. **Semantic search** over narrative text (needs vector similarity on raw text)
@@ -403,7 +422,7 @@ Only when:
 4. **Bulk analytics** that need full table scans (analyst role only)
 
 ```
-# Agent needs semantic search (falls through to raw)
+# Search/Ranking engine needs semantic search (falls through to raw)
 RAW QUERY:
   SELECT fir_id, narrative_en, 1 - (narrative_vec <=> $query_vec) as similarity
   FROM firs
@@ -427,11 +446,11 @@ def route_query(intent, user):
         else:
             return ontology.compute_card(intent.card_type, intent.subject)
     elif intent.type == "semantic_search":
-        return raw_data.vector_search(intent.query, user.permissions)
+        return tool_registry.invoke("T02", query_text=intent.query, authorization=user.permissions)
     elif intent.type == "narrative_extraction":
-        return raw_data.get_narrative(intent.fir_id, user.permissions)
+        return tool_registry.invoke("T01", fir_id=intent.fir_id, authorization=user.permissions)
     else:
-        return ontology.sparql_query(intent.query, user.permissions)
+        return tool_registry.invoke("T01", query=intent.query, authorization=user.permissions)
 ```
 
 ---
@@ -442,11 +461,11 @@ def route_query(intent, user):
 1. INGEST     → Raw FIR filed → Extract entities → Resolve → Add to ontology
 2. ENRICH     → Compute relationships → Score strength → Fire rules
 3. MATERIALIZE → Generate/refresh intelligence cards
-4. SERVE      → Agents query ontology → Permission filter → Return
+4. SERVE      → Typed engines query ontology → Permission filter → Return
 5. EVOLVE     → New entity types, relationships, rules added by admins
 6. AUDIT      → Every mutation logged → Hash chain for tamper detection
 ```
 
 ---
 
-*This ontology is the single source of truth for all AI agents in the system. No agent bypasses it.*
+*This ontology is the governed vocabulary for the demo system. Catalyst Data Store is authoritative for structured/vector records, Neo4j serves graph traversal, and typed tools enforce access; no reasoning stage accesses databases directly. Expanded entities, roles, and rules are future/optional.*

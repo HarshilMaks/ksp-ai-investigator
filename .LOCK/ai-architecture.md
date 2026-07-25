@@ -1,4 +1,8 @@
 # AI System Architecture
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 > KSP InvestigateAI — Intelligence Layer Design Document
 > Last Updated: 2026-07-23
@@ -13,33 +17,33 @@
 model_list:
   - model_name: "investigateai-primary"
     litellm_params:
-      model: groq/llama-3.1-70b-versatile
+      model: groq/llama-3.3-70b-versatile
       api_key: os.environ/GROQ_API_KEY
-      rpm: 30
+      rpm: 30  # configured ceiling; verify provider quota
       tpm: 100000
     priority: 1
 
   - model_name: "investigateai-fallback-1"
     litellm_params:
-      model: gemini/gemini-1.5-pro
+      model: gemini/gemini-2.5-flash
       api_key: os.environ/GEMINI_API_KEY
-      rpm: 15
+      rpm: 15  # configured ceiling; verify provider quota
       tpm: 1000000
     priority: 2
 
   - model_name: "investigateai-fallback-2"
     litellm_params:
-      model: mistral/mistral-large-latest
+      model: mistral/mistral-small-latest
       api_key: os.environ/MISTRAL_API_KEY
-      rpm: 10
+      rpm: 10  # configured ceiling; verify provider quota
       tpm: 500000
     priority: 3
 
   - model_name: "investigateai-fallback-3"
     litellm_params:
-      model: openrouter/meta-llama/llama-3.1-70b-instruct
+      model: openrouter/meta-llama/llama-3.1-8b-instruct:free
       api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 10
+      rpm: 10  # configured ceiling; verify provider quota
       tpm: 200000
     priority: 4
 
@@ -52,21 +56,21 @@ router_settings:
     retry_after: 5
 ```
 
-**Routing Logic:** Groq primary (lowest latency) → Gemini fallback (largest context) → Mistral (EU compliance) → OpenRouter (last resort aggregator)
+**Routing Logic:** Groq Llama 3.3 70B configured primary → Gemini 2.5 Flash secondary → Mistral Small tertiary → OpenRouter Llama 3.1 8B free emergency fallback; performance ordering is pending benchmark.
 
 ### Structured Output
 
-Every agent output is validated through Pydantic models:
+Every Planner, Reasoner, and Reporter stage output is validated through Pydantic models:
 
 ```python
-class AgentOutput(BaseModel):
-    """Base output model for all AI agents."""
-    reasoning_steps: list[ReasoningStep]
+class ReasoningStageOutput(BaseModel):
+    """Base output model for LLM reasoning stages."""
+    rationale_trace: list[ReasoningStep]
     citations: list[Citation]
     confidence: float  # 0.0 - 1.0
     metadata: OutputMetadata
 
-class InvestigationResponse(AgentOutput):
+class InvestigationResponse(ReasoningStageOutput):
     summary: str
     entities_identified: list[Entity]
     leads: list[Lead]
@@ -74,7 +78,7 @@ class InvestigationResponse(AgentOutput):
     network_data: Optional[NetworkGraph]
     financial_trail: Optional[FinancialTrail]
 
-class HypothesisEvaluation(AgentOutput):
+class HypothesisEvaluation(ReasoningStageOutput):
     hypothesis: str
     supporting_evidence: list[Evidence]
     contradicting_evidence: list[Evidence]
@@ -98,7 +102,7 @@ MAX_OUTPUT_TOKENS = 4_000   # Response generation
 MAX_CONTEXT_WINDOW = 32_000 # Retrieved context + history
 ```
 
-Budget tracking via Redis counters, reset at midnight IST. Alerts at 80% consumption.
+Budget tracking uses Catalyst Data Store for durable usage records and Catalyst Cache for hot counters; provider limits and alert thresholds are configuration targets pending verification.
 
 ### Streaming SSE Delivery
 
@@ -173,6 +177,47 @@ SQL + pgvector + Neo4j + intelligence cards + LLM services
   ↓
 SSE event stream back to the workspace
 ```
+
+---
+
+## Execution paths and evidence gate
+
+The LangGraph Investigation Orchestrator is a state machine, not an LLM agent. It selects one of two paths:
+
+```text
+Exact/structured query
+  → SQL Retrieval, Search/Ranking, Graph Intelligence, or Timeline Engine
+  → Evidence/Explainability Engine validates claims, numbers, citations, permissions
+  → cited response (no LLM)
+
+Ambiguous/complex query or hypothesis
+  → optional Planner Agent
+  → parallel deterministic engines
+  → evidence reconciliation and Evidence/Explainability gate
+  → Reasoning Agent (grounded synthesis)
+  → deterministic Lead Ranking Engine
+  → Reporter Agent when wording/package output is requested
+```
+
+The engines compute facts, counts, paths, scores, profiles, forecasts, and dates. The Planner interprets intent, the Reasoner evaluates evidence, and the Reporter communicates it. Humans review consequential conclusions.
+
+### Evidence and claim validation
+
+Before release, the Evidence/Explainability Engine checks that every factual claim has a source FIR/entity/relationship or computed result; numbers match engine output; citations are present and resolvable; permissions and investigation scope are enforced; contradictions and missing evidence are surfaced; and confidence/uncertainty is explicit. It stores the typed plan, engine results, citations, calculations, and model metadata. Explanations use structured rationale (evidence, factors, alternatives, gaps, confidence), never literal private chain-of-thought.
+
+## Execution Paths and Evidence Gate
+
+### Fast path
+
+Exact or structured queries route directly to SQL Retrieval, Search/Ranking, Graph Intelligence, or Timeline engines. No LLM is called when deterministic computation is sufficient. The Evidence/Explainability Engine validates the result before release.
+
+### Deep path
+
+Ambiguous, relational, or hypothesis queries invoke the optional Planner Agent, then run deterministic engines in parallel. Results are reconciled, passed to the grounded Reasoning Agent, ranked by the deterministic Lead Ranking Engine, and communicated by the Reporter Agent.
+
+### Evidence gate
+
+Before a response or package is released, the gate checks citations, deterministic numbers, permissions, contradictions, missing evidence, confidence, and audit metadata. No literal private chain-of-thought is exposed or stored; the system stores structured rationale and provenance.
 
 ---
 
@@ -257,7 +302,7 @@ RETURN path, [r IN relationships(path) | type(r)] AS relationship_types;
 
 ### Keyword Retriever
 
-PostgreSQL full-text search for exact term matching:
+Catalyst Data Store text search for exact term matching (the SQL shown below is a logical retrieval pattern; validate ZCQL/index support on Catalyst):
 
 ```sql
 CREATE INDEX idx_fir_narrative_fts ON firs USING gin(narrative_tsv);
@@ -337,7 +382,7 @@ class Citation(BaseModel):
 
 ```python
 EMBEDDING_CONFIG = {
-    "model": "BAAI/bge-m3",
+    "model": "AlpEge/bge-m3-onnx-int8",
     "quantization": "INT8",
     "runtime": "ONNX",
     "dimensions": 1024,
@@ -379,29 +424,29 @@ async def embed_and_retrieve(query: str) -> list[Result]:
     return reranked
 ```
 
-### Model: BGE-M3 INT8 ONNX
+### Model: AlpEge/bge-m3-onnx-int8 (1024-dim dense, ONNX CPU)
 
 | Property | Value |
 |----------|-------|
-| Model | BAAI/bge-m3 |
+| Model | AlpEge/bge-m3-onnx-int8 |
 | Quantization | INT8 (ONNX Runtime) |
 | Dense Dimensions | 1024 |
 | Sparse Weights | Learned term importance (lexical) |
 | Max Sequence Length | 8192 tokens |
 | Inference Device | CPU (ONNX optimized) |
-| Throughput | ~500 docs/sec (batch) |
+| Throughput | Pending benchmark |
 | Languages | Multilingual (English, Hindi, Kannada) |
 
 ---
 
-## Intelligence Engines (Pre-computed)
+## Deterministic Intelligence Engines (Pre-computed and query-time)
 
-All engines run as scheduled background tasks, storing results as pre-computed intelligence cards accessible instantly at query time.
+Engines are deterministic computation modules. Cron/Signals precompute reusable intelligence cards; query-time execution handles bounded retrieval and freshness-sensitive work. Cards remain subject to evidence and permission validation.
 
 ### NetworkDetectionEngine
 
 ```python
-class NetworkDetectionEngine:
+class GraphIntelligenceEngine:
     """Daily Cron → Louvain + PageRank + Betweenness → NetworkIntelligenceCards"""
     
     schedule: str = "0 2 * * *"  # 2 AM IST daily
@@ -432,7 +477,7 @@ class NetworkDetectionEngine:
 ### PatternForecastEngine
 
 ```python
-class PatternForecastEngine:
+class PatternAnalysisAndForecastingEngine:
     """Daily Cron → Prophet per (district, category) + H3 hotspots → HotspotCards"""
     
     schedule: str = "0 3 * * *"  # 3 AM IST daily
@@ -464,7 +509,7 @@ class PatternForecastEngine:
 ### BehavioralProfileEngine
 
 ```python
-class BehavioralProfileEngine:
+class BehavioralProfilingEngine:
     """Daily Cron → per-offender history analysis → OffenderProfiles"""
     
     schedule: str = "0 4 * * *"  # 4 AM IST daily
@@ -493,7 +538,7 @@ class BehavioralProfileEngine:
 ### FinancialLinkEngine
 
 ```python
-class FinancialLinkEngine:
+class FinancialAnalysisEngine:
     """Daily Cron → UPI/Account subgraph analysis → FinancialTrails"""
     
     schedule: str = "0 5 * * *"  # 5 AM IST daily
@@ -525,7 +570,7 @@ class FinancialLinkEngine:
 ### SimilarCaseEngine
 
 ```python
-class SimilarCaseEngine:
+class SearchRankingEngine:
     """On FIR insert (Signal) → compute similarity → index"""
     
     trigger: str = "signal:fir_inserted"  # Event-driven, not cron
@@ -659,7 +704,7 @@ Implementation:
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │              Data Stores                                       │  │
 │  │  ┌────────────┐  ┌──────────┐  ┌───────┐  ┌──────────────┐  │  │
-│  │  │ PostgreSQL │  │ pgvector │  │ Neo4j │  │    Redis     │  │  │
+│  │  │ Catalyst Data Store │  │ pgvector HNSW │  │ Neo4j │  │ Catalyst Cache     │  │  │
 │  │  │  (FIRs +   │  │(Embeddings│  │(Graph)│  │(Cache+Budget)│  │  │
 │  │  │   FTS)     │  │ 1024-d)  │  │       │  │              │  │  │
 │  │  └────────────┘  └──────────┘  └───────┘  └──────────────┘  │  │
@@ -667,3 +712,8 @@ Implementation:
 │                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+
+### Rationale and privacy boundary
+
+Outputs expose a structured rationale trace containing evidence references, decision factors, alternatives, and confidence. The system does not expose or persist literal private chain-of-thought; T20 produces an audit-oriented explanation suitable for review. Provider quotas, precision, latency, and throughput remain to-be-verified acceptance measurements.

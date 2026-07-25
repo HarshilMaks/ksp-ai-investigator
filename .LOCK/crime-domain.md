@@ -1,8 +1,16 @@
 # KSP InvestigateAI — Crime Domain Model
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 ## 1. Entity Types
 
-### Core Entities (15+)
+### Canonical MVP Entities (12)
+
+The canonical MVP vocabulary is: FIR, Person, Vehicle, Phone, IMEI, UPI, BankAccount, Evidence, Location, PoliceStation, District, and CrimeCategory. CCTV, Organization, Address, Weapon, DigitalAccount, and Property remain documented as future/optional extensions and are not additional MVP entities.
+
+### Extended Entity Vocabulary (future/optional)
 
 | # | Entity | Description | Key Attributes |
 |---|--------|-------------|----------------|
@@ -29,7 +37,9 @@
 
 ## 2. Relationship Types
 
-### Core Relationships (20+)
+### Canonical MVP Relationships (18)
+
+Relationships 1–18 below are the MVP vocabulary aligned with ontology.md and database-schema.md. Relationships 19–25 are future/optional extensions and do not change the MVP count.
 
 | # | Relationship | From → To | Properties |
 |---|-------------|-----------|------------|
@@ -50,7 +60,7 @@
 | 15 | **BELONGS_TO** | PoliceStation → District | jurisdictionArea, populationServed |
 | 16 | **CONTACTED** | Phone → Phone | callCount, smsCount, firstContact, lastContact, totalDuration |
 | 17 | **CAPTURED_BY** | Person/Vehicle → CCTV | timestamp, confidence, imageRef, matchType(face/plate/body) |
-| 18 | **LINKED_TO** | Evidence → FIR | linkType, relevance, admissibility, collectionOfficer |
+| 18 | **LINKED_TO** | Evidence → FIR | linkType, relevance, legal_review_status, collectionOfficer |
 | 19 | **SIMILAR_TO** | Person → Person | similarityType(appearance/behavior/alias), confidence |
 | 20 | **HOTSPOT** | Location → CrimeCategory | incidentCount, timeRange, riskScore, trend(increasing/decreasing) |
 | 21 | **OWNS** | Person → Vehicle/Property/BankAccount | ownershipType, since, verified(bool) |
@@ -60,6 +70,22 @@
 | 25 | **FAMILY_OF** | Person → Person | relation(father/mother/spouse/sibling/child) |
 
 ---
+
+## Deterministic engine mapping
+
+| Domain capability | Engine | Output and qualification |
+|---|---|---|
+| FIR filters, joins, counts, section/date queries | SQL Retrieval | Reproducible records and aggregates; permission-filtered |
+| MO similarity, related cases, semantic search | Search/Ranking + Pattern Analysis | Ranked candidates with source citations; similarity is not identity |
+| Associations, co-accused, paths, communities, centrality | Graph Intelligence | Computed relationships and paths with provenance; human review for consequential conclusions |
+| MO clusters, anomalies, escalation indicators | Pattern Analysis | Statistical signals, not findings of guilt |
+| Behavioral history and profile features | Behavioral Profiling | Review-oriented indicators; not a determination of future conduct |
+| UPI/account flows, layering, structuring, mule indicators | Financial Analysis | Transaction-derived signals; verify against source records |
+| Hotspots and time-series projections | Forecasting | Forecast signals with uncertainty and measured validation pending |
+| Chronology and missing events | Timeline | Source-linked reconstruction and gaps |
+| Claims, citations, numbers, permissions, contradictions | Evidence/Explainability | Release gate for every response and package |
+
+All risk, ranking, and forecast outputs are qualified signals for authorized human review. They are not legal conclusions, guilt determinations, or guarantees.
 
 ## 3. Crime Categories (IPC/BNS Mapping)
 
@@ -418,19 +444,19 @@ RETURN l, incidents ORDER BY incidents DESC
 | Entity | Estimated Count | Growth Rate |
 |--------|----------------|-------------|
 | FIRs | ~500,000/year | 5-8% annually |
-| Persons (unique) | ~2,000,000 | Cumulative |
-| Vehicles | ~800,000 | Cumulative |
-| Phone numbers | ~1,500,000 | Cumulative |
-| Relationships | ~10,000,000 | 10x entity growth |
-| CCTV records | ~50,000,000/year | High volume |
+| Persons (unique) | Statewide future sizing estimate; validate | Cumulative, not MVP capacity |
+| Vehicles | Statewide future sizing estimate; validate | Cumulative, not MVP capacity |
+| Phone numbers | Statewide future sizing estimate; validate | Cumulative, not MVP capacity |
+| Relationships | Statewide future sizing estimate; validate | Not an MVP capacity claim |
+| CCTV records | Future/optional integration estimate; validate | Not in canonical MVP |
 
-### Performance Requirements
+### Performance acceptance targets (pending benchmark)
 
 | Operation | Target Latency | Notes |
 |-----------|---------------|-------|
-| Single entity lookup | < 100ms | By ID or unique key |
-| 2-hop connection query | < 2s | Up to 1000 results |
-| Network detection | < 10s | Deep traversal with filters |
-| Hotspot calculation | < 5s | Spatial aggregation |
-| Full-text search | < 500ms | Across FIR summaries |
-| Financial flow trace | < 5s | Up to 5 hops |
+| Single entity lookup | Design target; measure | By ID or unique key |
+| 2-hop connection query | Design target; measure | Up to 1000 results |
+| Network detection | Design target; measure | Deep traversal with filters |
+| Hotspot calculation | Design target; measure | Spatial aggregation |
+| Full-text search | Design target; measure | Across FIR summaries |
+| Financial flow trace | Design target; measure | Up to 5 hops |

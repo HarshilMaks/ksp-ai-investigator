@@ -1,4 +1,30 @@
 # KSP InvestigateAI — Police Investigation Workflow
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
+
+## Tool registry boundary
+
+Workflow labels below are mapped to the internal typed T01-T23 registry from AGENTS.md. They are not additional public APIs. Where no canonical tool exists, the item is explicitly marked **future capability** and remains human-reviewed.
+
+The scenarios below are illustrative design outputs using synthetic/example data; they are support-review aids, not achieved accuracy, legal, custody, charging, or asset-recovery claims.
+
+## Engine and reasoning-stage mapping
+
+| Workflow need | Deterministic engine | Reasoning stage (only when needed) |
+|---|---|---|
+| Structured FIR lookup, counts, filters | SQL Retrieval | None on fast path |
+| Similar/semantic cases and ranking | Search/Ranking | Planner only if intent is ambiguous |
+| Associations, paths, communities | Graph Intelligence | Reasoner for grounded synthesis |
+| MO/anomaly/temporal pattern | Pattern Analysis | Reasoner for hypothesis evaluation |
+| Offender/profile signals | Behavioral Profiling | Reporter for wording if requested |
+| Account trails and flow flags | Financial Analysis | Reasoner for contradiction-aware synthesis |
+| Hotspots and future signals | Forecasting | Reporter for briefing language |
+| Chronology and gaps | Timeline | Reporter for package wording |
+| Citations, numbers, permissions, contradictions | Evidence/Explainability | Gate before every response |
+
+Decision Support is the deterministic Lead Ranking Engine; optional LLM explanation occurs only after the evidence gate. Planner, Reasoner, and Reporter are not invoked for work a deterministic engine can complete.
 
 ## 1. FIR Lifecycle & AI Assistance
 
@@ -11,11 +37,11 @@
 
 **AI Assistance:**
 ```
-Tool: classifyCrime(complaintText)
+Tool: T16 case_summarize (Search/Ranking or SQL Retrieval engine) (classification step)(complaintText)
 → Returns: Suggested IPC/BNS sections, crime category, severity score
 → Flags: Repeat complainant, known hotspot, similar recent complaints
 
-Tool: extractEntities(complaintText)
+Tool: T07 entity_resolve (extraction is an internal pipeline step)(complaintText)
 → Returns: Persons, vehicles, locations, phone numbers, timestamps
 → Auto-populates FIR draft fields
 ```
@@ -30,14 +56,14 @@ Tool: extractEntities(complaintText)
 
 **AI Assistance:**
 ```
-Tool: suggestSections(crimeDescription, entities)
+Tool: future capability: legal-section suggestion for human review(crimeDescription, entities)
 → Returns: Primary + secondary sections with confidence scores
 → Cross-references: BNS equivalents, special act applicability
 
-Tool: assignIO(caseComplexity, ioWorkload, ioExpertise)
+Tool: future capability: workload-aware IO assignment(caseComplexity, ioWorkload, ioExpertise)
 → Returns: Recommended IO based on current caseload and specialization
 
-Tool: checkDuplicateFIR(entities, location, timeWindow)
+Tool: T01 sql_query + T13 similar_cases(entities, location, timeWindow)
 → Returns: Potential duplicate/related FIRs within jurisdiction
 ```
 
@@ -51,17 +77,17 @@ Tool: checkDuplicateFIR(entities, location, timeWindow)
 
 **AI Assistance:**
 ```
-Tool: findConnections(entityId, depth=2, relationTypes=[])
+Tool: T03 graph_traverse (Graph Intelligence engine)(entityId, depth=2, relationTypes=[])
 → Returns: Network graph of linked entities across FIRs
 → Highlights: Co-accused, shared assets, communication patterns
 
-Tool: generateLeads(firId)
+Tool: T15 lead_generate (deterministic Lead Ranking Engine)(firId)
 → Returns: Prioritized investigation leads based on:
   - Similar MO matches from historical cases
   - Unverified entities needing follow-up
   - Temporal/spatial correlations
 
-Tool: analyzeTimeline(firId)
+Tool: T14 timeline_build (Timeline engine)(firId)
 → Returns: Chronological event reconstruction with gaps identified
 ```
 
@@ -75,17 +101,17 @@ Tool: analyzeTimeline(firId)
 
 **AI Assistance:**
 ```
-Tool: correlateEvidence(firId, evidenceList)
+Tool: T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis)(firId, evidenceList)
 → Returns: Evidence strength matrix, gaps in chain of custody
 → Flags: Contradictions, timeline inconsistencies
 
-Tool: analyzeCDR(phoneNumbers[], timeRange)
+Tool: T03 graph_traverse (Graph Intelligence engine) (phone relationships)(phoneNumbers[], timeRange)
 → Returns: Communication patterns, tower locations, common contacts
 
-Tool: traceFinancialFlow(accounts[], timeRange)
+Tool: T11 financial_trail (Financial Analysis engine)(accounts[], timeRange)
 → Returns: Money trail visualization, layering detection, mule accounts
 
-Tool: matchMO(moDescriptor)
+Tool: T08 pattern_match (Pattern Analysis engine)(moDescriptor)
 → Returns: Historical cases with similar modus operandi, ranked by similarity
 ```
 
@@ -99,13 +125,13 @@ Tool: matchMO(moDescriptor)
 
 **AI Assistance:**
 ```
-Tool: assessFlightRisk(suspectId)
+Tool: T12 offender_profile (Behavioral Profiling engine) (review signal)(suspectId)
 → Returns: Risk score based on history, connections, assets
 
-Tool: predictCustodyNeeds(firId, suspectProfile)
-→ Returns: Recommended remand duration justification points
+Tool: future capability: custody planning support(firId, suspectProfile)
+→ Returns: Review points for an authorized custody decision
 
-Tool: checkAntecedents(personId)
+Tool: T12 offender_profile (Behavioral Profiling engine)(personId)
 → Returns: Prior cases, conviction history, pending warrants, bail jumps
 ```
 
@@ -119,15 +145,15 @@ Tool: checkAntecedents(personId)
 
 **AI Assistance:**
 ```
-Tool: generateChargesheetDraft(firId)
+Tool: T21 generate_report (Reporter stage over evidence-gated results) (draft support; human review)(firId)
 → Returns: Structured document with all linked evidence and statements
 → Validates: Section applicability, evidence sufficiency per section
 
-Tool: assessCaseStrength(firId)
+Tool: T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis) (review support)(firId)
 → Returns: Prosecution readiness score, evidence gaps, weak links
 → Recommends: Additional investigation needed before filing
 
-Tool: suggestCharges(evidenceSummary, accusedProfile)
+Tool: future capability: charge review support(evidenceSummary, accusedProfile)
 → Returns: Supportable charges with evidence mapping per charge
 ```
 
@@ -140,10 +166,10 @@ Tool: suggestCharges(evidenceSummary, accusedProfile)
 
 **AI Assistance:**
 ```
-Tool: prepareCourtBrief(firId)
+Tool: T21 generate_report (Reporter stage over evidence-gated results) (audit-oriented brief; not a legal determination)(firId)
 → Returns: Case summary, evidence chronology, witness list with key testimony
 
-Tool: identifyWeaknesses(firId)
+Tool: T15 lead_generate (deterministic Lead Ranking Engine) (evidence-gap leads)(firId)
 → Returns: Potential defense arguments, evidence vulnerabilities
 ```
 
@@ -159,9 +185,9 @@ Tool: identifyWeaknesses(firId)
 | Time | Activity | AI Tool |
 |------|----------|---------|
 | 08:00 | Morning briefing | `getStationDashboard(psCode)` — overnight incidents, pending tasks |
-| 09:00 | Case allocation | `assignIO()` — workload-balanced assignment |
+| 09:00 | Case allocation | `future capability: workload-aware IO assignment()` — workload-balanced assignment |
 | 10:00 | Review critical cases | `getCaseSummary(firId)` — AI-generated case status |
-| 12:00 | Visitor complaints | `classifyCrime()` — quick FIR categorization |
+| 12:00 | Visitor complaints | `T16 case_summarize (Search/Ranking or SQL Retrieval engine) (classification step)()` — quick FIR categorization |
 | 14:00 | Supervision | `getIOProgress(ioId)` — investigation milestones |
 | 16:00 | Reporting | `generateStationReport()` — daily/weekly crime stats |
 | 18:00 | Alerts review | `getAlerts(psCode)` — chargesheet deadlines, court dates |
@@ -182,12 +208,12 @@ Tool: identifyWeaknesses(firId)
 | Time | Activity | AI Tool |
 |------|----------|---------|
 | 08:00 | Case priorities | `getInvestigationQueue(ioId)` — deadline-sorted task list |
-| 09:00 | Lead follow-up | `generateLeads(firId)` — next investigation steps |
-| 10:00 | Witness recording | `extractEntities()` — auto-extract from statements |
-| 12:00 | Evidence analysis | `correlateEvidence()` — link new evidence to case |
-| 14:00 | Network exploration | `findConnections()` — discover linked suspects/cases |
-| 16:00 | Case documentation | `generateChargesheetDraft()` — progress on filing |
-| 18:00 | CDR/financial review | `analyzeCDR()`, `traceFinancialFlow()` |
+| 09:00 | Lead follow-up | `T15 lead_generate (deterministic Lead Ranking Engine)(firId)` — next investigation steps |
+| 10:00 | Witness recording | `T07 entity_resolve (extraction is an internal pipeline step)()` — auto-extract from statements |
+| 12:00 | Evidence analysis | `T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis)()` — link new evidence to case |
+| 14:00 | Network exploration | `T03 graph_traverse (Graph Intelligence engine)()` — discover linked suspects/cases |
+| 16:00 | Case documentation | `T21 generate_report (Reporter stage over evidence-gated results) (draft support; human review)()` — progress on filing |
+| 18:00 | CDR/financial review | `T03 graph_traverse (Graph Intelligence engine) (phone relationships)()`, `T11 financial_trail (Financial Analysis engine)()` |
 
 **Key Needs:**
 - Lead generation: "What should I investigate next?"
@@ -205,8 +231,8 @@ Tool: identifyWeaknesses(firId)
 | Time | Activity | AI Tool |
 |------|----------|---------|
 | 08:00 | District overview | `getDistrictDashboard(districtCode)` — crime stats, trends |
-| 10:00 | Hotspot review | `getHotspots(districtCode, timeRange)` — spatial clusters |
-| 12:00 | Resource planning | `forecastCrime(districtCode, nextWeek)` — predictive deployment |
+| 10:00 | Hotspot review | `T10 hotspot_detect (Forecasting/Pattern Analysis engine)(districtCode, timeRange)` — spatial clusters |
+| 12:00 | Resource planning | `T17 forecast_crime (Forecasting engine) (aggregate risk signal)(districtCode, nextWeek)` — predictive deployment |
 | 14:00 | Sensitive cases | `getCaseSummary()` — high-profile case tracking |
 | 16:00 | Inter-station links | `findCrossJurisdictionLinks()` — connected cases across PS |
 
@@ -227,9 +253,9 @@ Tool: identifyWeaknesses(firId)
 | Time | Activity | AI Tool |
 |------|----------|---------|
 | 08:00 | Network monitoring | `detectNetworks(criteria)` — new criminal networks |
-| 10:00 | Behavioral profiling | `profileOffender(personId)` — behavioral patterns |
+| 10:00 | Behavioral profiling | `T12 offender_profile (Behavioral Profiling engine)(personId)` — behavioral patterns |
 | 12:00 | Spatial analysis | `analyzeSpatialPatterns(crimeType, region)` |
-| 14:00 | Temporal patterns | `analyzeTemporalPatterns(crimeType)` — time-based trends |
+| 14:00 | Temporal patterns | `T09 temporal_analysis(crimeType)` — time-based trends |
 | 16:00 | Report generation | `generateIntelligenceReport()` — actionable intelligence |
 
 **Key Needs:**
@@ -249,7 +275,7 @@ Tool: identifyWeaknesses(firId)
 | Day | Activity | AI Tool |
 |-----|----------|---------|
 | Mon | Weekly crime review | `getRegionalTrends()` — multi-district comparison |
-| Tue | Policy impact | `correlatePolicyImpact(policy, metrics)` — intervention effectiveness |
+| Tue | Policy impact | `T18 demographic_correlate + T09 temporal_analysis(policy, metrics)` — intervention effectiveness |
 | Wed | Resource strategy | `forecastResourceNeeds()` — manpower/equipment planning |
 | Thu | Inter-agency intel | `crossReferenceNationalDB()` — NCRB, interstate links |
 | Fri | Sociological trends | `analyzeSociologicalFactors()` — demographics, economic correlation |
@@ -273,14 +299,14 @@ Tool: identifyWeaknesses(firId)
 
 ```
 Step 1: Pattern Detection
-Tool: detectPatterns(crimeType="Vehicle Theft", region="Bangalore East", timeRange="last90days")
+Tool: T08 pattern_match (Pattern Analysis engine)(crimeType="Vehicle Theft", region="Bangalore East", timeRange="last90days")
 → Returns: Cluster of 23 cases with similar MO
   - Target: Two-wheelers (Hero Splendor, Honda Activa)
   - Timing: 11 PM - 3 AM
   - Method: Master key, no CCTV coverage areas
 
 Step 2: Network Analysis
-Tool: findConnections(entityType="Vehicle", crimeCategory="Vehicle Theft", region="Bangalore East")
+Tool: T03 graph_traverse (Graph Intelligence engine)(entityType="Vehicle", crimeCategory="Vehicle Theft", region="Bangalore East")
 → Returns: Network graph showing:
   - 4 accused persons appearing across 8 FIRs
   - 2 shared phone numbers across accused
@@ -288,7 +314,7 @@ Tool: findConnections(entityType="Vehicle", crimeCategory="Vehicle Theft", regio
   - 3 addresses in same locality (Ramamurthy Nagar)
 
 Step 3: Deep Link Analysis
-Tool: expandNetwork(seedNodes=[person1, person2, person3, person4], depth=3)
+Tool: T03 graph_traverse (Graph Intelligence engine)(seedNodes=[person1, person2, person3, person4], depth=3)
 → Returns: Extended network:
   - 2 receivers (fence operators) in Kolar district
   - 1 document forger for RC transfers
@@ -296,14 +322,14 @@ Tool: expandNetwork(seedNodes=[person1, person2, person3, person4], depth=3)
   - WhatsApp group communication pattern (CDR clustering)
 
 Step 4: Predictive Next Target
-Tool: predictNextTarget(networkId, moProfile)
+Tool: T17 forecast_crime (Forecasting engine) (risk signal, not a prediction of a person)(networkId, moProfile)
 → Returns:
   - High-risk areas: HSR Layout, Bellandur (expanding geography)
   - High-risk timing: Thursday-Saturday nights
   - Recommended patrol deployment
 
 Step 5: Evidence Package
-Tool: generateEvidenceMap(networkId)
+Tool: T22 pin_evidence(networkId)
 → Returns: Per-accused evidence matrix:
   - Person 1: Present in 5 FIR locations (tower data), shared phone
   - Person 2: Financial flows, vehicle registration links
@@ -311,7 +337,7 @@ Tool: generateEvidenceMap(networkId)
   - Person 4: Confiscated master keys, seized vehicles
 ```
 
-**Outcome:** Single consolidated investigation, all accused charged under IPC 379/411 + Organized Crime
+**Support-review output:** Single consolidated investigation, possible linkages and relevant sections presented for authorized human review
 
 ---
 
@@ -323,14 +349,14 @@ Tool: generateEvidenceMap(networkId)
 
 ```
 Step 1: Complaint Clustering
-Tool: clusterComplaints(crimeType="Cybercrime-OTP Fraud", timeRange="last60days")
+Tool: T08 pattern_match (Pattern Analysis engine)(crimeType="Cybercrime-OTP Fraud", timeRange="last60days")
 → Returns: 15 complaints with similar pattern:
   - Victim receives call claiming to be bank/delivery
   - Victim shares OTP
   - Immediate fund transfer to mule accounts
 
 Step 2: Behavioral Profiling
-Tool: profileOffender(indicators={callPattern, scriptAnalysis, targetDemographic})
+Tool: T12 offender_profile (Behavioral Profiling engine)(indicators={callPattern, scriptAnalysis, targetDemographic})
 → Returns: Offender profile:
   - Operating hours: 10 AM - 6 PM (professional pattern)
   - Target: Senior citizens, recent online shoppers
@@ -339,7 +365,7 @@ Tool: profileOffender(indicators={callPattern, scriptAnalysis, targetDemographic
   - Likely base: Jharkhand/West Bengal (known cybercrime hubs)
 
 Step 3: Financial Trail
-Tool: traceFinancialFlow(victimAccounts[], direction="outward", depth=4)
+Tool: T11 financial_trail (Financial Analysis engine)(victimAccounts[], direction="outward", depth=4)
 → Returns: Money layering pattern:
   - Layer 1: Victim → Mule Account A (UPI instant)
   - Layer 2: Mule A → Mule B, C, D (split within 10 min)
@@ -347,21 +373,21 @@ Tool: traceFinancialFlow(victimAccounts[], direction="outward", depth=4)
   - Common mule account controller: Single IMEI operating 6 SIMs
 
 Step 4: IMEI/Phone Analysis
-Tool: analyzeIMEI(imeiList, timeRange)
+Tool: T03 graph_traverse (Graph Intelligence engine)(imeiList, timeRange)
 → Returns:
   - IMEI-1: Used with 6 different SIMs (all prepaid, Jharkhand circles)
   - Tower locations: Concentrated in Deoghar, Jharkhand
   - Call patterns: Bulk calls to Karnataka numbers
 
 Step 5: Cross-State Intelligence
-Tool: matchWithNationalDB(offenderProfile, moPattern)
+Tool: future capability: external database integration(offenderProfile, moPattern)
 → Returns:
   - 3 matching FIRs in Maharashtra (same mule accounts)
   - 2 matching FIRs in Tamil Nadu (same IMEI)
   - Known gang operating from Jamtara, Jharkhand
 ```
 
-**Outcome:** Inter-state coordination request, consolidated chargesheet under IT Act 66C/66D + IPC 420
+**Support-review output:** Inter-state coordination request, coordination and report inputs for authorized human review
 
 ---
 
@@ -373,7 +399,7 @@ Tool: matchWithNationalDB(offenderProfile, moPattern)
 
 ```
 Step 1: Entity Extraction
-Tool: extractEntities(complaints[])
+Tool: T07 entity_resolve (extraction is an internal pipeline step)(complaints[])
 → Returns:
   - Company: "GoldenHarvest Investments Pvt Ltd"
   - Directors: 3 persons with PAN/Aadhaar
@@ -382,7 +408,7 @@ Tool: extractEntities(complaints[])
   - Victims: 47 identified across 8 PS jurisdictions
 
 Step 2: Corporate Network
-Tool: analyzeOrganization(companyName, registrationDetails)
+Tool: future capability: organization enrichment(companyName, registrationDetails)
 → Returns:
   - Shell company network: 4 related companies (common directors)
   - Registration: 6 months old, inflated authorized capital
@@ -390,7 +416,7 @@ Tool: analyzeOrganization(companyName, registrationDetails)
   - Similar companies flagged by SEBI
 
 Step 3: Full Financial Flow
-Tool: traceFinancialFlow(companyAccounts[], timeRange="12months", detail="full")
+Tool: T11 financial_trail (Financial Analysis engine)(companyAccounts[], timeRange="12months", detail="full")
 → Returns: Complete money map:
   - Inflows: ₹4.7 Cr from 120+ individuals
   - Outflows:
@@ -401,7 +427,7 @@ Tool: traceFinancialFlow(companyAccounts[], timeRange="12months", detail="full")
     - ₹0.3 Cr → Cash withdrawals (ATM clusters)
 
 Step 4: Asset Tracing
-Tool: traceAssets(directorIds[])
+Tool: T11 financial_trail (Financial Analysis engine) (asset/financial review)(directorIds[])
 → Returns:
   - 3 properties registered in family names (last 6 months)
   - 2 luxury vehicles purchased
@@ -409,15 +435,15 @@ Tool: traceAssets(directorIds[])
   - Foreign remittances to Dubai
 
 Step 5: Victim Impact & Case Building
-Tool: assessCaseStrength(firId, charges=["IPC 420", "IPC 406", "KPID Act"])
+Tool: T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis) (review support)(firId, charges=["IPC 420", "IPC 406", "KPID Act"])
 → Returns:
   - Evidence strength: Strong (documentary + digital)
-  - Recommended charges: IPC 420, 406, 120B + KPID Act + PMLA
-  - Attachment recommendations: Properties, vehicles, bank balances
-  - Estimated recoverable assets: ₹2.1 Cr
+  - Potential sections for authorized human review (not a charging decision): IPC 420, 406, 120B + KPID Act + PMLA
+  - Asset-review candidates: properties, vehicles, bank balances
+  - Candidate asset estimate for review: ₹2.1 Cr (not a verified recovery claim)
 ```
 
-**Outcome:** Multi-jurisdictional FIR, ED/EOW referral, property attachment under PMLA
+**Support-review output:** review package for possible multi-jurisdictional coordination and referrals; legal actions remain with authorized officers
 
 ---
 
@@ -429,15 +455,15 @@ Tool: assessCaseStrength(firId, charges=["IPC 420", "IPC 406", "KPID Act"])
 
 ```
 Step 1: Historical Pattern Analysis
-Tool: analyzeTemporalPatterns(crimeType="Chain Snatching", region="Bangalore", years=3)
+Tool: T09 temporal_analysis(crimeType="Chain Snatching", region="Bangalore", years=3)
 → Returns:
   - Peak months: October-January (festival season)
   - Peak days: Tuesday, Friday (temple/market days)
   - Peak hours: 6-8 AM (morning walkers), 6-9 PM (evening)
-  - Year-over-year: 15% increase trend
+  - Illustrative trend; percentage requires benchmark validation
 
 Step 2: Spatial Hotspot Mapping
-Tool: getHotspots(crimeType="Chain Snatching", granularity="500m", minIncidents=3)
+Tool: T10 hotspot_detect (Forecasting/Pattern Analysis engine)(crimeType="Chain Snatching", granularity="500m", minIncidents=3)
 → Returns: Top 20 hotspots:
   - Jayanagar 4th Block market area
   - Malleshwaram 8th Cross
@@ -446,23 +472,23 @@ Tool: getHotspots(crimeType="Chain Snatching", granularity="500m", minIncidents=
   - [Ranked by incident density and recency]
 
 Step 3: Predictive Forecast
-Tool: forecastCrime(crimeType="Chain Snatching", region="Bangalore", horizon="next30days")
+Tool: T17 forecast_crime (Forecasting engine) (aggregate risk signal)(crimeType="Chain Snatching", region="Bangalore", horizon="next30days")
 → Returns:
-  - Predicted incidents: 45-55 (confidence: 78%)
-  - High-risk zones: 8 areas with >70% probability
+  - Illustrative aggregate forecast range; confidence requires benchmark validation
+  - High-risk zones: aggregate risk signal; probability requires benchmark validation
   - Risk multipliers: Upcoming Dasara festival (+40%), gold price rise (+15%)
   - Recommended patrol: Map with time-slot-specific deployment
 
 Step 4: Offender Pattern
-Tool: profileRecentOffenders(crimeType="Chain Snatching", timeRange="last6months")
+Tool: T12 offender_profile (Behavioral Profiling engine)(crimeType="Chain Snatching", timeRange="last6months")
 → Returns:
   - Typical profile: Male, 18-28, two-wheeler, operates in pairs
   - Common MO: Approach from behind on bike, snatch, flee via known routes
   - Escape routes: Mapped common flee directions per hotspot
-  - Recidivism: 35% of caught offenders are repeat
+  - Repeat-offender indicator; percentage requires benchmark validation
 
 Step 5: Deployment Recommendation
-Tool: generateDeploymentPlan(forecast, availableResources)
+Tool: future capability: deployment planning support(forecast, availableResources)
 → Returns:
   - Patrol schedule: Time-slot × location matrix
   - Plainclothes deployment: High-value target areas
@@ -470,7 +496,7 @@ Tool: generateDeploymentPlan(forecast, availableResources)
   - Decoy operation suggestions: Based on offender targeting pattern
 ```
 
-**Outcome:** Preventive deployment, 30% reduction in incidents during festival season
+**Support-review output:** Preventive deployment, possible preventive deployment signal; impact percentage requires dated benchmark
 
 ---
 
@@ -482,7 +508,7 @@ Tool: generateDeploymentPlan(forecast, availableResources)
 
 ```
 Step 1: Hypothesis Formulation
-Tool: formulateHypothesis(
+Tool: T15 lead_generate (deterministic Lead Ranking Engine) (hypothesis lead)(
   claim="JP Nagar burglaries (last 3 months) are connected",
   supportingFIRs=[FIR-1, FIR-2, FIR-3, FIR-4, FIR-5, FIR-6],
   criteria=["same_MO", "temporal_proximity", "geographic_cluster"]
@@ -490,7 +516,7 @@ Tool: formulateHypothesis(
 → Returns: Structured hypothesis with testable predictions
 
 Step 2: Evidence Evaluation (For)
-Tool: evaluateEvidence(hypothesis, direction="supporting")
+Tool: T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis)(hypothesis, direction="supporting")
 → Returns:
   - MO similarity score: 0.82 (high) — all use glass cutter, target ground floor
   - Temporal pattern: All between 2-5 AM, all on weeknights
@@ -499,7 +525,7 @@ Tool: evaluateEvidence(hypothesis, direction="supporting")
   - Supporting strength: MODERATE-HIGH
 
 Step 3: Evidence Evaluation (Against)
-Tool: evaluateEvidence(hypothesis, direction="contradicting")
+Tool: T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis)(hypothesis, direction="contradicting")
 → Returns:
   - FIR-4: Different entry method (door pry vs glass cut)
   - FIR-6: Timing anomaly (Saturday night vs weeknight pattern)
@@ -507,14 +533,14 @@ Tool: evaluateEvidence(hypothesis, direction="contradicting")
   - Contradicting strength: LOW-MODERATE
 
 Step 4: Alternative Hypotheses
-Tool: generateAlternatives(hypothesis)
+Tool: T15 lead_generate (deterministic Lead Ranking Engine)(hypothesis)
 → Returns:
   - Alt-1: Two separate pairs copying same MO (confidence: 25%)
   - Alt-2: Single gang but FIR-4, FIR-6 are unrelated (confidence: 40%)
   - Alt-3: Original hypothesis correct for all 6 (confidence: 35%)
 
 Step 5: Investigation Recommendations
-Tool: recommendNextSteps(hypothesis, evidenceState)
+Tool: T15 lead_generate (deterministic Lead Ranking Engine)(hypothesis, evidenceState)
 → Returns:
   - Priority 1: Compare CCTV from adjacent roads for FIR-1,2,3,5 (likely same vehicle)
   - Priority 2: CDR analysis of tower data near crime scenes at crime times
@@ -523,7 +549,7 @@ Tool: recommendNextSteps(hypothesis, evidenceState)
   - Estimated effort: 3-4 days to confirm/reject hypothesis
 ```
 
-**Outcome:** Hypothesis partially confirmed (4/6 FIRs connected), leads to gang identification
+**Support-review output:** hypothesis evidence state and leads presented for human review; connection counts require measured validation
 
 ---
 
@@ -533,13 +559,13 @@ Tool: recommendNextSteps(hypothesis, evidenceState)
 
 | User Query | AI Interpretation | Tool Chain |
 |------------|-------------------|------------|
-| "Show me all cases linked to this phone number" | Entity lookup + connection traversal | `findEntity()` → `findConnections()` |
-| "Is this accused involved in other cases?" | Person-FIR relationship search | `checkAntecedents()` |
-| "What's the crime trend in Koramangala?" | Spatial-temporal analysis | `analyzeTemporalPatterns()` + `getHotspots()` |
-| "Find similar MO cases" | Modus operandi matching | `matchMO()` |
-| "Who else uses this vehicle?" | Entity relationship traversal | `findConnections(entityType="Vehicle")` |
-| "Generate leads for this case" | Multi-factor lead generation | `generateLeads()` |
-| "Is this case strong enough for chargesheet?" | Evidence sufficiency analysis | `assessCaseStrength()` |
+| "Show me all cases linked to this phone number" | Entity lookup + connection traversal | `findEntity()` → `T03 graph_traverse (Graph Intelligence engine)()` |
+| "Is this accused involved in other cases?" | Person-FIR relationship search | `T12 offender_profile (Behavioral Profiling engine)()` |
+| "What's the crime trend in Koramangala?" | Spatial-temporal analysis | `T09 temporal_analysis()` + `T10 hotspot_detect (Forecasting/Pattern Analysis engine)()` |
+| "Find similar MO cases" | Modus operandi matching | `T08 pattern_match (Pattern Analysis engine)()` |
+| "Who else uses this vehicle?" | Entity relationship traversal | `T03 graph_traverse (Graph Intelligence engine)(entityType="Vehicle")` |
+| "Generate leads for this case" | Multi-factor lead generation | `T15 lead_generate (deterministic Lead Ranking Engine)()` |
+| "Is this case strong enough for chargesheet?" | Evidence sufficiency analysis | `T20 explain_reasoning (Evidence/Explainability engine; Reasoner only for synthesis) (review support)()` |
 
 ### Confidence & Transparency
 

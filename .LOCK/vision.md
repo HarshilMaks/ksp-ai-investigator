@@ -1,4 +1,8 @@
 # InvestigateAI — Product Vision
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
+
 
 > **AI Investigation Operating System for Karnataka State Police**
 
@@ -19,25 +23,21 @@ Karnataka State Police operates **1100+ police stations** across 31 districts. T
 
 ## The Solution
 
-**InvestigateAI is NOT a chatbot.** It is an **AI Investigation Copilot** powered by an autonomous agent fleet.
+**InvestigateAI is NOT a chatbot.** It is an **AI Investigation Copilot** powered by a LangGraph investigation orchestrator with reasoning stages and deterministic engines.
 
-```
-┌─────────────────────────────────────────────────────┐
-│              InvestigateAI Architecture              │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│   User Layer:  Chat + Voice + Investigation Cards   │
-│                         ↕                           │
-│   Agent Fleet: Network │ Pattern │ Profile │ Leads  │
-│                         ↕                           │
-│   Intelligence Layer:  Continuous Background Compute│
-│                         ↕                           │
-│   Data Layer:  Neo4j │ Vector DB │ Time-Series      │
-│                                                     │
-└─────────────────────────────────────────────────────┘
+```text
+User Layer: Chat + Voice + Investigation Cards
+                  ↕ REST/SSE
+Catalyst Gateway → LangGraph Investigation Orchestrator
+                  ├─ Fast path: deterministic engine → evidence gate → response
+                  └─ Deep path: Planner? → parallel engines → Reasoner →
+                               Lead Ranking Engine → Reporter
+                  ↕
+Data: Catalyst Data Store + pgvector authority; Neo4j projection;
+      Stratus cards/artifacts; Catalyst Cache; Signals/Cron/Circuits
 ```
 
-Each agent specializes in one intelligence domain. They work **continuously** — not just when queried — maintaining pre-computed intelligence that is instantly retrievable.
+Deterministic engines compute facts and maintain precomputed intelligence artifacts through Signals/Cron/Circuits. AI interprets intent and explains validated evidence; humans review consequential conclusions.
 
 ---
 
@@ -65,6 +65,10 @@ Palantir's Gotham platform doesn't wait for an analyst to ask a question. It con
 
 ---
 
+### Architecture principle: AI decides intent; engines compute facts
+
+The orchestrator decides which path and tools are needed. Deterministic engines compute retrieval, graph, pattern, behavioral, financial, forecast, timeline, and ranking outputs. Planner, Reasoner, and Reporter stages interpret or communicate; the Evidence/Explainability gate validates claims before release. Fast structured queries avoid LLM calls entirely.
+
 ## Key Differentiation
 
 ### What 100+ Teams Will Build vs What We Build
@@ -72,12 +76,12 @@ Palantir's Gotham platform doesn't wait for an analyst to ask a question. It con
 | Dimension | What Others Build | What We Build |
 |-----------|------------------|---------------|
 | **Interface** | Chat window with text responses | Investigation Operating System with cards, graphs, maps |
-| **Architecture** | RAG over FIR PDFs | Agent fleet with specialized intelligence engines |
+| **Architecture** | RAG over FIR PDFs | Orchestrator with deterministic intelligence engines and reasoning stages |
 | **Graph** | Basic relationship display | Neo4j GDS with PageRank, Louvain community detection, temporal edges |
 | **Forecasting** | Simple trend lines | Prophet per district × category with confidence intervals |
 | **Spatial** | Pin-on-map visualization | H3 hexagonal grid with hotspot clustering |
-| **Explainability** | "Based on data analysis..." | Full reasoning trace with clickable evidence citations |
-| **Latency** | 5–15s for complex queries | P99 <200ms retrieval from pre-computed intelligence |
+| **Explainability** | "Based on data analysis..." | Structured rationale with clickable evidence citations |
+| **Latency** | Current baseline to measure | Dated acceptance target to be set after benchmark; streaming UX |
 | **Output** | Text answers | Investigation Packages: PDF brief + network diagram + lead list |
 | **Security** | Basic login | Role-based views (SHO sees station, SP sees district) with full audit |
 | **Demo** | Generic Q&A | 5 end-to-end investigation workflows showing real police value |
@@ -88,12 +92,12 @@ Palantir's Gotham platform doesn't wait for an analyst to ask a question. It con
 
 | Metric | Target | Why It Matters |
 |--------|--------|----------------|
-| **P99 Retrieval Latency** | <200ms | Officers won't wait. Speed = adoption. |
-| **Precision@10** | >85% | Top 10 results must be relevant — no noise. |
-| **Citation Coverage** | 100% | Every claim must trace to source FIR/record. |
-| **Investigation Package Generation** | <5s | Full brief with network + leads in seconds. |
-| **Challenge Requirement Coverage** | 10/10 | All datathon requirements demonstrated. |
-| **Demo Scenario Pass Rate** | 5/5 | All 5 investigation scenarios complete end-to-end. |
+| **Retrieval latency** | Acceptance target to be set by 2026-08-15 benchmark | Measure representative Catalyst workloads; not an achieved fact. |
+| **Precision@10** | Acceptance target to be set by 2026-08-15 benchmark | Evaluate labeled retrieval set; not an achieved fact. |
+| **Citation Coverage** | Dated acceptance target pending benchmark | Every claim should trace to source FIR/record. |
+| **Investigation Package Generation** | Dated acceptance target pending benchmark | Full brief with network + leads; measure representative runs. |
+| **Challenge Requirement Coverage** | Dated acceptance target pending demo validation | Demonstrate the applicable datathon requirements. |
+| **Demo Scenario Pass Rate** | Dated acceptance target pending scripted validation | Validate all five investigation scenarios end-to-end. |
 
 ---
 
@@ -126,7 +130,7 @@ This means every interaction produces:
 1. **Actionable Intelligence** — not data summaries, but "here's what to do next"
 2. **Evidence Package** — citations, confidence scores, reasoning trace
 3. **Next Steps** — ranked leads, suggested actions, similar case precedents
-4. **Exportable Artifacts** — PDF briefs for court, network diagrams for briefings
+4. **Exportable Artifacts** — PDF briefs for authorized review, network diagrams for briefings
 
 An officer should never finish an InvestigateAI interaction thinking "interesting." They should finish thinking "I know exactly what to do next."
 
@@ -135,9 +139,9 @@ An officer should never finish an InvestigateAI interaction thinking "interestin
 ## Vision Timeline
 
 ```
-Phase 1 (Datathon):  5 demo scenarios, all 10 requirements, pre-computed intelligence
+Phase 1 (Datathon):  one deeply implemented vertical slice; five scenarios and all requirements remain validation scope
 Phase 2 (Pilot):     Live data integration, 10 pilot stations, feedback loop
-Phase 3 (Scale):     1100+ stations, continuous learning, KSP-wide deployment
+Phase 3 (Scale):     1100+ stations, precompute/update pipeline, KSP-wide deployment subject to validation
 ```
 
 ---

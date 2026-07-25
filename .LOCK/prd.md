@@ -1,6 +1,22 @@
 # InvestigateAI — Product Requirements Document
+> Status: DERIVED FROM LOCKED DECISIONS
+> Decision baseline: DECISIONS.md (2026-07-23)
+> Last reviewed: 2026-07-24
 
-> **Version:** 1.0 | **Status:** LOCKED | **Target:** KSP Datathon 2026 Challenge 1
+
+> **Version:** 1.0 | **Status:** DERIVED FROM LOCKED DECISIONS | **Target:** KSP Datathon 2026 Challenge 1
+
+---
+
+## Architecture Operating Model
+
+```text
+Simple structured query → Fast path → deterministic engine → evidence gate → response
+Complex or ambiguous query → optional Planner → parallel deterministic engines
+→ evidence reconciliation → Reasoning Agent → Lead Ranking Engine → Reporter Agent
+```
+
+The four-day MVP prioritizes one end-to-end vertical slice. Deterministic engines compute facts, paths, counts, scores, timelines, and forecasts; Planner/Reasoner/Reporter stages interpret or communicate only where needed. Accuracy and latency figures are acceptance targets pending benchmark.
 
 ---
 
@@ -15,15 +31,15 @@
 | Component | Technology | Capability |
 |-----------|-----------|------------|
 | Chat Interface | React + Streaming SSE | Real-time token streaming, markdown rendering |
-| Voice Input | Web Speech API / Whisper | Kannada + English voice queries |
+| Voice Input | Faster-Whisper base CPU with Groq Whisper fallback | Kannada + English voice queries |
 | Context Memory | Session state + vector recall | Multi-turn investigation context (last 20 turns) |
-| PDF Export | React-PDF / Puppeteer | One-click Investigation Package generation |
-| Query Understanding | LLM + Intent Router | Classify → route to specialized agent |
+| PDF Export | SmartBrowz / WeasyPrint | One-click Investigation Package generation |
+| Query Understanding | LangGraph fast/deep router + optional Planner | Classify intent, then route to deterministic engine |
 
 **User Flow:**
 ```
-Officer speaks/types → Intent classified → Agent activated → 
-Intelligence card rendered → Officer acts or follows up → 
+Officer speaks/types → fast/deep route selected →
+Intelligence card rendered → Officer acts or follows up →
 Session exportable as PDF brief
 ```
 
@@ -135,7 +151,7 @@ Session exportable as PDF brief
 
 | Component | Technology | Capability |
 |-----------|-----------|------------|
-| Lead Generation | Agent-driven analysis | Ranked leads with confidence scores |
+| Lead Generation | Deterministic lead-ranking engine with optional LLM explanation | Ranked leads with confidence scores |
 | Similar Cases | Vector search on FIR embeddings | "Cases with similar pattern/MO/location" |
 | Investigation Packages | Composite PDF generation | Brief + network + leads + timeline |
 | Next Best Action | Rule engine + LLM | "Recommended next steps for this case" |
@@ -188,8 +204,8 @@ Session exportable as PDF brief
 | Accuracy Tracking | MAPE / MAE metrics | Model performance monitoring |
 
 **Signal Types:**
-- 🔴 **Critical:** Forecast shows >50% increase vs baseline
-- 🟡 **Warning:** Forecast shows >25% increase vs baseline
+- 🔴 **Critical:** Configurable review trigger when forecast exceeds a validated baseline threshold
+- 🟡 **Warning:** Configurable warning trigger when forecast exceeds a validated baseline threshold
 - 🟢 **Stable:** Within expected range
 - 🔵 **Declining:** Forecast shows decrease — resource reallocation opportunity
 
@@ -203,7 +219,7 @@ Session exportable as PDF brief
 
 | Component | Technology | Capability |
 |-----------|-----------|------------|
-| Reasoning Trace | Chain-of-thought logging | Step-by-step reasoning visible to user |
+| Reasoning Trace | Structured rationale and evidence-factor logging | Step-by-step reasoning visible to user |
 | Evidence Citations | Source linking | Every claim → clickable FIR/record reference |
 | Confidence Scores | Calibrated probability | Low/Medium/High with numeric score |
 | Uncertainty Communication | Natural language | "Based on 3 FIRs (high confidence)" vs "Limited data (low confidence)" |
@@ -320,18 +336,22 @@ Session exportable as PDF brief
 
 ## 5. MVP Definition
 
+### Four-day vertical slice
+
+The initial four-day build implements one investigation path deeply: structured query/related-case retrieval, deterministic engine execution, evidence gate, cited response, typed T01–T23 calls, RBAC scoping, and a minimal SSE workspace. The 8-week plan remains the longer production roadmap for parallel engines, five scripted scenarios, precomputation, multilingual voice, and polish.
+
 **The MVP is complete when:**
 
-✅ All 10 challenge requirements are implemented with at least one feature each  
-✅ All 5 demo scenarios execute end-to-end without manual intervention  
-✅ P99 retrieval latency < 200ms (pre-computed intelligence)  
-✅ Every AI output has citations traceable to source records  
-✅ RBAC enforces role-based data scoping (demo with 2+ roles)  
-✅ Investigation Package (PDF) generates in < 5 seconds  
-✅ Voice input works for at least English queries  
-✅ Network visualization renders graphs with 50+ nodes interactively  
-✅ Forecast models produce district × category predictions with confidence bands  
-✅ Full audit log captures all interactions  
+⬜ All applicable challenge requirements are acceptance targets to validate with the demo scripts
+✅ One four-day vertical slice executes deeply end-to-end; remaining scenarios are roadmap scope
+⬜ Retrieval latency target to be set and measured from pre-computed intelligence
+⬜ Evidence gate validates citations, numbers, permissions, contradictions, and confidence
+✅ RBAC enforces role-based data scoping (demo with 2+ roles)
+⬜ Investigation Package (PDF) generation time is a dated acceptance target pending benchmark
+✅ Voice input works for at least English queries
+⬜ Network visualization target: validate interactive graph size during benchmark
+⬜ Forecast output target: district/category projections with uncertainty bands, pending validation
+⬜ Full audit log captures plans, engine results, citations, and model metadata
 
 ---
 
@@ -341,12 +361,12 @@ Session exportable as PDF brief
 |-----------|----------|
 | Hosting | Zoho Catalyst (mandated by challenge) |
 | Auth | Catalyst Auth with custom claims |
-| Database | Catalyst Datastore + Neo4j (self-hosted or AuraDB) |
-| LLM | Catalyst AI / OpenAI API (with fallback) |
+| Database | Catalyst Data Store + pgvector HNSW; Neo4j 5 Community on AppSail |
+| LLM | LiteLLM/OpenAI-compatible routing: Groq Llama 3.3 70B, Gemini 2.5 Flash, Mistral Small, OpenRouter Llama 3.1 8B free emergency fallback |
 | Frontend | React + TypeScript (SPA) |
-| Backend | Node.js Catalyst Functions |
-| Vector Store | Embedded (local) or Catalyst-compatible |
-| Graph | Neo4j Community Edition or AuraDB Free |
+| Backend | Python Catalyst Functions with LangGraph and typed Tool Registry |
+| Vector Store | pgvector HNSW in Catalyst Data Store; BGE-M3 1024-dim ONNX CPU embeddings |
+| Graph | Neo4j 5 Community on Catalyst AppSail |
 
 ---
 
@@ -354,12 +374,12 @@ Session exportable as PDF brief
 
 | Judge Priority | Our Answer |
 |---------------|-----------|
-| "Does it work?" | 5 scenarios execute flawlessly in demo |
+| "Does it work?" | 5 scenarios execute against acceptance scripts in demo; reliability remains to be measured |
 | "Is it useful for real police?" | Investigation packages, not chat responses |
-| "Is it technically impressive?" | Agent fleet + Neo4j GDS + Prophet + H3 |
+| "Is it technically impressive?" | Orchestrator and reasoning stages + Neo4j GDS + Prophet + H3 |
 | "Is it secure?" | RBAC + audit + jurisdiction scoping |
 | "Is it explainable?" | Every output has reasoning trace + citations |
-| "Can it scale?" | Pre-computed intelligence pattern scales to 1100 stations |
+| "Can it scale?" | Pre-computed intelligence pattern has a statewide sizing target; Catalyst capacity validation is required |
 
 ---
 
