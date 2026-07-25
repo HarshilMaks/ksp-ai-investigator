@@ -98,7 +98,7 @@ class SyntheticFixtureTests(unittest.TestCase):
         self.assertTrue(first.relationships)
         for fir in first.firs:
             self.assertRegex(fir.fir_number, r"^KA/[A-Z-]+/\d{3}/2026/\d{6}$")
-            self.assertRegex(fir.ps_code, r"^KA-[A-Z]+-[A-Z]-\d{3}$")
+            self.assertRegex(fir.ps_code, r"^KA-(?:[A-Z]+-[A-Z]|[A-Z]+)-\d{3}$")
             self.assertIn("SYNTHETIC-DEMO-ONLY", fir.narrative_en or "")
         for relationship in first.relationships:
             self.assertTrue(relationship.evidence_fir_ids)

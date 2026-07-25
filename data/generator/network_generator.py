@@ -76,7 +76,7 @@ def generate_network_records(
                 )
             )
         relationships.append(
-            Relationship(fir_entity.entity_id, station_id, RelationshipType.JURISDICTION_OF, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
+            Relationship(fir_entity.entity_id, station_id, RelationshipType.JURISDICTION_OF, relationship_id=_id(seed, "relationship", f"{index}:jurisdiction"), evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
         )
 
         category_id = category_entity_ids.setdefault(fir.crime_category, _id(seed, "category", fir.crime_category))
@@ -94,7 +94,7 @@ def generate_network_records(
                 )
             )
         relationships.append(
-            Relationship(fir_entity.entity_id, category_id, RelationshipType.CATEGORIZED_AS, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
+            Relationship(fir_entity.entity_id, category_id, RelationshipType.CATEGORIZED_AS, relationship_id=_id(seed, "relationship", f"{index}:category"), evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
         )
 
     return entities, links, relationships

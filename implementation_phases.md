@@ -6,7 +6,7 @@
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
 > Current phase: `P04`
-> Current state: `IN_PROGRESS`
+> Current state: `COMPLETE`
 
 ## 1. Operating Contract
 
@@ -150,7 +150,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P04 — Logical data contracts and synthetic fixtures
 
-- **Status:** `IN_PROGRESS`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P02`, `P03`
 - **Owner scope:** domain models, schema mapping, synthetic data
 - **Tasks:** model FIRs, entities, FIR-entity links, relationships, investigations, evidence, timeline, engine runs, provenance, cards, and audit records; implement Karnataka/CCTNS identifiers and IPC/BNS mappings; create deterministic synthetic fixture generators; document logical-to-Catalyst mapping gaps.
@@ -386,7 +386,17 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Review-gate evidence:** Default local/test settings select local adapters; Catalyst, Neo4j, and LLM adapters raise typed disabled/unconfigured errors without network calls. Injected fake transports/backends verify typed request shapes and locked LLM fallback order. Neo4j boundary preserves Bolt `7687` and HTTP `7474`; connection settings remain centralized in `Settings`; only REST/SSE/multipart remain declared external protocols; no agent or engine access path was added.
 - **Known blockers:** Actual Catalyst SDK, Neo4j driver, and LiteLLM provider compatibility remain intentionally unvalidated and deferred to later integration/deep-path phases. No credentials were required.
 
-### Review records: P04–P20
+### Review record: P04 — Logical data contracts and synthetic fixtures
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-25T18:34:27Z
+- **Completed:** 2026-07-25T18:40:46Z
+- **Implementation evidence:** Added locked enums and validated dataclasses in `src/domain/enums.py` and `src/domain/models.py`; deterministic ontology canonicalization and endpoint metadata in `src/domain/ontology.py`; explicit logical-to-Catalyst compatibility metadata in `src/domain/schema_mapping.py`; synthetic Karnataka context/generators in `data/generator/`; seed JSON fixtures in `data/seed/`; and `docs/data-contracts.md`.
+- **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran 29 tests with `OK`; `uv run python -m compileall -q src functions data tests` passed; schema-model assertions passed for all 11 logical tables; reproducible fixture counts were 12 FIRs, 48 FIR-entity links, 60 evidence-backed relationships, and 68 entities; fixture SHA-256 was `b72302398f351744c70af57cd1f06ffa0cb26a99175f4264ab88a0cff4b42cf2`; `git diff --check` passed.
+- **Review-gate evidence:** Entity vocabulary contains exactly the 15 database-schema entity types; relationship vocabulary contains exactly 20 locked relationship types; card vocabulary contains the 5 logical card types; confidence/strength/vector/evidence/verification/card-subject constraints are tested; CCTNS FIR and station formats are tested; optional `IMEI`, `Evidence`, and `District` extensions are rejected until schema review; all model field sets map to known logical table fields; Catalyst deployment remains explicitly unvalidated; all generated narratives are marked synthetic and no real data is used.
+- **Known blockers:** PostgreSQL extensions, triggers, partial indexes, expression keys, Catalyst schema syntax, and persistence remain intentionally unvalidated/deferred. P05 graph projection has not started.
+
+### Review records: P05–P20
 
 - **Status:** `PLANNED`
 - **Evidence:** not started
