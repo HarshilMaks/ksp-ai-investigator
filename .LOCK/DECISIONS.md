@@ -156,13 +156,17 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 ---
 
-## 11. FRONTEND: React 18 + Vite on Catalyst Slate
+## 11. FRONTEND: Next.js 15 + React 19 on Catalyst AppSail
 
-- Framework: React 18 + TypeScript + Vite
-- Hosting: Catalyst Slate (Web Client Hosting)
-- State: Zustand (client) + LangGraph Checkpointer (server persistence)
-- Real-time: SSE for AI/progress/alert streams; WebSocket is deferred until multi-investigator collaboration is required
-- Visualization: Cytoscape.js (graphs), ECharts (Sankey/heatmaps/timelines), MapLibre GL (maps), Deck.gl H3 (hexagons)
+- Framework: Next.js 15 App Router + React 19 + TypeScript
+- Hosting: Catalyst AppSail
+- Styling/components: Tailwind CSS v4, shadcn/ui, Radix UI, Lucide React, Motion (Framer Motion)
+- Data/forms: TanStack Query v5, Zustand, React Hook Form, Zod, TanStack Table
+- Workspace/UI: react-resizable-panels, cmdk, Sonner, React DnD, react-markdown, React PDF, next-themes
+- Visualization: Cytoscape.js (graphs), Apache ECharts (Sankey/heatmaps/timelines), MapLibre GL (maps and H3 overlays)
+- Architecture: Feature-Sliced Design under `client/src/` (`app`, `features`, `entities`, `widgets`, `shared`, `styles`)
+- Communication: REST APIs, SSE for AI/progress/alert streams, JWT/Catalyst Authentication
+- WebSockets remain deferred; the frontend does not access databases directly.
 - Cost: $0
 
 ---
@@ -215,7 +219,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 - WebSockets are deferred until collaborative multi-investigator editing or presence is required.
 
 ```
-Browser (React/Slate)
+Browser (Next.js 15/React 19 on AppSail)
     │ REST capability/resource APIs + SSE + Multipart
     ▼
 Catalyst API Gateway (Auth + RBAC + Rate Limit)
@@ -298,7 +302,7 @@ The initial target is 50K FIRs, 200K entities/vectors, and 500K relationships, s
 | TTS | Piper ONNX + Edge TTS | $0 |
 | Translation | IndicTrans2 200M ONNX | $0 |
 | OCR | Tesseract 5.x | $0 |
-| Frontend | React 18 + Vite (Slate) | $0 |
+| Frontend | Next.js 15 App Router + React 19 (Catalyst AppSail) | $0 |
 | AI orchestration | LangGraph orchestrator + Planner/Reasoning/Reporter agents | $0 |
 | Deterministic engines | SQL, Search/Ranking, Graph, Pattern, Profiling, Financial, Forecasting, Timeline, Evidence | $0 |
 | Internal tools | Typed T01–T23 registry; engines are not LLM agents | $0 || Workflows | Catalyst Circuits | $0 |
@@ -365,7 +369,7 @@ These decisions are FINAL:
 7. ✅ Faster-Whisper + Piper (CPU voice, demo-ready)
 8. ✅ IndicTrans2 ONNX (best Kannada translation)
 9. ✅ LangGraph orchestrator + Planner/Reasoner/Reporter + 23-tool typed registry + deterministic engines
-10. ✅ React 18 + Slate (6-panel investigation workspace)
+10. ✅ Next.js 15 App Router + React 19 on Catalyst AppSail with Feature-Sliced Design (7-panel investigation workspace)
 11. ✅ Pre-computed intelligence (Cron + Signals; direct lookup target, measured during validation)
 12. ✅ Tamper-evident audit log (hash-chained; legal admissibility requires separate review)
 13. ✅ 5 Demo scenarios (scope frozen)

@@ -129,7 +129,7 @@ This document defines 15 Intelligence Card types.
 }
 ```
 
-**Workspace Appearance:** Interactive force-directed graph visualization (D3.js) with node size proportional to centrality. Leaders highlighted in red, bridges in orange. Sidebar lists members ranked by role. Expandable to full-screen investigation board.
+**Workspace Appearance:** Interactive Cytoscape.js force-directed graph visualization with node size proportional to centrality. Leaders highlighted in red, bridges in orange. Sidebar lists members ranked by role. Expandable to full-screen investigation board.
 
 ---
 
@@ -771,7 +771,7 @@ Engine produces card
 
 ### Rendering Architecture
 
-All Intelligence Cards are rendered as **React components** in the investigation workspace. The rendering system follows a consistent pattern:
+All Intelligence Cards are rendered as **React 19 components organized by Feature-Sliced Design** in the Next.js 15 App Router investigation workspace. The rendering system follows a consistent pattern:
 
 ```
 Card JSON → CardRenderer (type router) → Specific Card Component → Rendered UI
@@ -923,6 +923,6 @@ The 15 Intelligence Card types form a complete analytical output layer for the G
 
 Total card types: **15**
 Storage: **Stratus JSON (canonical) + Catalyst Cache (hot) + Data Store (metadata)**
-Rendering: **React component library with consistent interaction patterns**
+Rendering: **Next.js 15/React 19 Feature-Sliced component library with consistent interaction patterns**
 Lifecycle: **Created → Active → Stale → Refreshed → Archived**
 Confidence: **Per-card methodology with visual language (green/yellow/orange/red)**

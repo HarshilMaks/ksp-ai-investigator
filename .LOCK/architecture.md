@@ -33,7 +33,7 @@
 │                          PRESENTATION LAYER                                      │
 │                                                                                  │
 │  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │  Catalyst Slate — React 18 SPA (Vite)                                   │    │
+│  │  Catalyst AppSail — Next.js 15 App Router + React 19                        │    │
 │  │  ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌───────────────────┐    │    │
 │  │  │ Chat Panel │ │ Graph View │ │ Intel Cards│ │ Investigation Ws  │    │    │
 │  │  └────────────┘ └────────────┘ └────────────┘ └───────────────────┘    │    │
@@ -135,7 +135,7 @@
               ┌────────────┼────────────┐
               │            │            │
        ┌──────▼───┐ ┌─────▼────┐ ┌────▼─────┐
-       │ Auth     │ │ API Fns  │ │ Slate    │
+       │ Auth     │ │ API Fns  │ │ AppSail  │
        │ (verify) │ │ (planned; capacity pending validation)    │ │ (static) │
        └──────────┘ └─────┬────┘ └──────────┘
                            │
@@ -219,23 +219,33 @@ The engine registry includes SQL Retrieval, Search/Ranking, Graph Intelligence, 
 - `dbms.security.procedures.unrestricted=gds.*,apoc.*`
 - `dbms.security.procedures.allowlist=gds.*,apoc.*`
 
-### Catalyst Slate (Frontend)
+### Catalyst AppSail (Frontend)
 
 ```
 ┌──────────────────────────────────────────────┐
-│  Slate — Static SPA Hosting                  │
+│  AppSail — Next.js Web Application           │
 │                                              │
-│  Framework: React 18 + TypeScript            │
-│  Build: Vite 5 (optimized chunks)           │
-│  Routing: React Router v6 (client-side)      │
-│  State: Zustand (lightweight store)          │
-│  UI: Tailwind CSS + Headless UI             │
-│  Visualization: D3.js (force graph)          │
-│                                              │
-│  Bundle size target: <500KB gzipped          │
-│  Code splitting: Per-workspace lazy loading  │
+│  Framework: Next.js 15 App Router            │
+│  Runtime: React 19 + TypeScript              │
+│  Hosting: Catalyst AppSail                   │
+│  Styling: Tailwind CSS v4 + shadcn/ui        │
+│  Primitives: Radix UI + Lucide React         │
+│  Motion: Motion (Framer Motion)              │
+│  Data: TanStack Query v5 + Zustand            │
+│  Forms: React Hook Form + Zod                 │
+│  Tables: TanStack Table                       │
+│  Visualization: Cytoscape.js, Apache ECharts,│
+│                 MapLibre GL                   │
+│  Layout: react-resizable-panels              │
+│  Interaction: cmdk, Sonner, React DnD         │
+│  Content: react-markdown + React PDF          │
+│  Theme: next-themes                           │
+│  Architecture: Feature-Sliced Design         │
+│  Communication: REST + SSE + JWT/Catalyst Auth│
 └──────────────────────────────────────────────┘
 ```
+
+The frontend source tree is rooted at `client/src/` and follows FSD: `app/`, `features/`, `entities/`, `widgets/`, `shared/` (`ui`, `api`, `hooks`, `lib`, `types`, `utils`), and `styles/`. It is deployed on Catalyst AppSail; this frontend deployment choice does not change the Python Catalyst Functions or any backend service.
 
 ### Managed Services (Catalyst Platform)
 
@@ -907,39 +917,32 @@ ksp-investigate-ai/
 │           ├── init.sh              #   Container initialization
 │           └── health-check.sh      #   Liveness probe
 │
-├── client/                          # Frontend (React 18 + Vite)
-│   ├── package.json
-│   ├── vite.config.ts
+├── client/                          # Next.js 15 + React 19 frontend on AppSail
+│   ├── package.json                 # Pinned frontend dependencies
+│   ├── next.config.ts               # Next.js App Router configuration
 │   ├── tsconfig.json
-│   ├── tailwind.config.js
-│   ├── index.html
-│   └── src/
-│       ├── main.tsx                 #   App entry point
-│       ├── App.tsx                  #   Root component + routing
-│       ├── components/
-│       │   ├── workspace/           #   Main workspace layout
-│       │   │   ├── WorkspaceLayout.tsx
-│       │   │   ├── ChatPanel.tsx    #   AI chat interface
-│       │   │   ├── GraphPanel.tsx   #   D3 force-directed graph
-│       │   │   ├── IntelPanel.tsx   #   Intelligence cards grid
-│       │   │   ├── TimelinePanel.tsx#   Chronological view
-│       │   │   └── MapPanel.tsx     #   Geographic visualization
-│       │   ├── common/              #   Reusable UI components
-│       │   ├── auth/                #   Login & role display
-│       │   └── dashboard/           #   Analytics overview
-│       ├── store/
-│       │   ├── chatStore.ts         #   Conversation state (Zustand)
-│       │   ├── graphStore.ts        #   Graph visualization state
-│       │   ├── authStore.ts         #   Auth & user state
-│       │   └── workspaceStore.ts    #   Layout & panel state
-│       ├── services/
-│       │   ├── apiClient.ts         #   Axios instance + interceptors
-│       │   ├── streamClient.ts      #   SSE EventSource wrapper
-│       │   ├── authService.ts       #   Login/logout/refresh
-│       │   └── cacheService.ts      #   Client-side caching
-│       ├── hooks/                   #   Custom React hooks
-│       ├── types/                   #   TypeScript interfaces
-│       └── utils/                   #   Helper functions
+│   ├── postcss.config.mjs           # Tailwind CSS v4
+│   └── src/                         # Feature-Sliced Design root
+│       ├── app/                     # Routes, layouts, providers
+│       ├── features/
+│       │   ├── investigation/      # Lifecycle, health, workspace state
+│       │   ├── evidence/            # Evidence board and provenance
+│       │   ├── graph/               # Cytoscape.js graph interactions
+│       │   ├── intelligence/        # Card dock, confidence, freshness
+│       │   ├── timeline/            # Timeline and gaps
+│       │   ├── reports/             # Report preview/export
+│       │   ├── chat/                # Conversation and SSE streaming
+│       │   └── authentication/     # JWT/Catalyst Authentication UI
+│       ├── entities/                # Domain-shaped frontend models
+│       ├── widgets/                 # Seven-panel workspace composition
+│       ├── shared/
+│       │   ├── ui/                  # shadcn/ui, Radix UI, Lucide React
+│       │   ├── api/                 # REST and SSE clients
+│       │   ├── hooks/               # Shared hooks
+│       │   ├── lib/                 # Query, theme, DnD, and setup utilities
+│       │   ├── types/               # TypeScript view/API types
+│       │   └── utils/               # Pure frontend utilities
+│       └── styles/                  # Tailwind v4 theme and global styles
 │
 ├── data/                            # Synthetic Data Generation
 │   ├── generator/
@@ -983,7 +986,7 @@ ksp-investigate-ai/
 │                                                                              │
 │                         ┌──────────────┐                                     │
 │                         │   Frontend   │                                     │
-│                         │  (React SPA) │                                     │
+│                         │  (Next.js 15 App Router) │                          │
 │                         └──────┬───────┘                                     │
 │                                │                                             │
 │                    ┌───────────┴───────────┐                                 │
@@ -1036,7 +1039,7 @@ Catalyst API Gateway exposes capability-oriented and resource REST routes; the L
 | Versioning | Path-based (`/api/v1/...`) |
 | Error format | `{ "error": { "code": "ERR_XXX", "message": "...", "details": {} } }` |
 | Rate limiting | Per-role limits are configuration targets pending Catalyst validation |
-| CORS | Catalyst-managed, Slate domain whitelisted |
+| CORS | Catalyst-managed, AppSail frontend domain whitelisted |
 
 **SSE Connection:**
 ```javascript

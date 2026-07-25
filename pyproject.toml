@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ksp-investigateai"
+version = "0.1.0"
+description = "Synthetic-data crime intelligence operating system"
+requires-python = ">=3.11,<3.13"
+
+[tool.ksp]
+backend_language = "python"
+deployment_python = "3.11"
+local_test_command = "uv run python -m unittest discover -s tests -p 'test_*.py'"
+synthetic_data_only = true
+public_protocols = ["rest", "sse", "multipart"]
+neo4j_bolt_port = 7687
+neo4j_http_port = 7474
+api_timeout_seconds = 30
+signal_timeout_seconds = 60
+job_timeout_seconds = 300
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+exclude = ["tests*"]

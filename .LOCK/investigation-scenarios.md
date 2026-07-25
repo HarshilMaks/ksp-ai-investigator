@@ -198,7 +198,7 @@ Trace ₹12.3 Lakh from victim Lakshmi Devi's account through a chain of mule ac
 - **Cash-Out Card** — Methods: crypto (18%), gold (35%), ATM cash (15%), in-transit (19%), wallet (13%)
 
 ### Artifacts Produced
-- **Sankey Flow Diagram** — ECharts Sankey showing source → Layer 1 → Layer 2 → cash-out with amounts and timestamps
+- **Sankey Flow Diagram** — Apache ECharts Sankey showing source → Layer 1 → Layer 2 → cash-out with amounts and timestamps
 - **Transaction Timeline** — Minute-by-minute reconstruction: initial fraud at 10:14 AM, Layer 1 splits at 10:17–10:22 AM, cash-out complete by 2:45 PM
 - **Mule Network Graph** — Cytoscape.js graph showing account relationships and controller (Nagesh B.)
 - **Freezing Recommendation** — Priority list: (1) new.account77@oksbi (₹2.3L still in transit), (2) wallet account (₹1.7L recoverable)
@@ -270,10 +270,10 @@ Review the 30-day crime forecast for chain snatching in Bangalore South; identif
 - **Sociological Context Card** — Correlation: market days + evening hours + low streetlight density = highest risk
 
 ### Artifacts Produced
-- **H3 Hexagonal Hotspot Map** — Deck.gl visualization with predicted intensity per hex cell, filterable by week
+- **H3 Hexagonal Hotspot Map** — MapLibre GL visualization with predicted intensity per hex cell, filterable by week
 - **Patrol Deployment Plan** — Recommended beat allocation: 2 extra patrols in Jayanagar (6–9 AM), 3 in Banashankari (5–8 PM), mobile unit for JP Nagar/BTM
-- **Prophet Forecast Chart** — ECharts line chart with observed data, forecast, 80% and 95% confidence bands
-- **Temporal Heatmap** — ECharts 7×24 heatmap showing crime probability density
+- **Prophet Forecast Chart** — Apache ECharts line chart with observed data, forecast, 80% and 95% confidence bands
+- **Temporal Heatmap** — Apache ECharts 7×24 heatmap showing crime probability density
 - **Resource Allocation PDF** — Exportable deployment order with justification and evidence
 
 ### Proactive Alert
@@ -814,7 +814,7 @@ Request a comprehensive monthly intelligence briefing covering: district-wide cr
      - New drug network expansion
      - Interstate gang movements
   ```
-- **Interactive Dashboard** — ECharts-powered district dashboard with drill-down capability
+- **Interactive Dashboard** — Apache ECharts-powered district dashboard with drill-down capability
 - **Resource Allocation Matrix** — Station × crime type × forecast → optimal deployment table
 - **Comparison Benchmark** — Bangalore Urban vs. state average vs. national metro average
 

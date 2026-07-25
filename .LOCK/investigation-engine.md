@@ -203,7 +203,7 @@ class CytoscapeGraph(BaseModel):
     layout: str = "cose"  # Default layout algorithm
 
 class SankeyData(BaseModel):
-    """D3 Sankey diagram compatible data."""
+    """Apache ECharts Sankey-compatible data."""
     nodes: list[dict]  # {name, type (account/upi/person)}
     links: list[dict]  # {source, target, value, timestamp}
     total_flow: float

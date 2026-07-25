@@ -673,7 +673,7 @@ Implementation:
 │                                                                     │
 │  ┌─────────────┐    ┌────────────────┐    ┌───────────────────────┐  │
 │  │   Frontend   │───►│ Catalyst API   │───►│ LangGraph + Tool      │  │
-│  │  (React/Slate)│◄──│ Gateway + SSE  │◄──│ Registry + LiteLLM    │  │
+│  │  (Next.js 15/React 19)│◄──│ Gateway + SSE  │◄──│ Registry + LiteLLM    │  │
 │  └─────────────┘    └──────────────┘    └───────────┬───────────┘  │
 │                                                      │              │
 │  ┌───────────────────────────────────────────────────┼───────────┐  │
