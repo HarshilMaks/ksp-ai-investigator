@@ -19,7 +19,7 @@ def generate_entities(count: int = 10, *, seed: int = 20260725, observed_at: dat
 
     if count < 0:
         raise ValueError("count must be non-negative")
-    timestamp = observed_at or datetime(2026, 1, 1, tzinfo=__import__("datetime").timezone.utc)
+    timestamp = observed_at or datetime(2026, 1, 1, tzinfo=timezone.utc)
     entities: list[Entity] = []
     for index in range(1, count + 1):
         person_value = f"Synthetic Person {index:04d}"
@@ -34,6 +34,9 @@ def generate_entities(count: int = 10, *, seed: int = 20260725, observed_at: dat
                     attributes={"dob": f"1990-01-{(index % 28) + 1:02d}", "father_name": "Synthetic Parent"},
                 ),
                 attributes={"synthetic": True, "role": "ACCUSED"},
+                first_seen=timestamp,
+                last_seen=timestamp,
+                created_at=timestamp,
             )
         )
         phone = f"+9100000{index:05d}"
@@ -44,6 +47,9 @@ def generate_entities(count: int = 10, *, seed: int = 20260725, observed_at: dat
                 entity_value=phone,
                 canonical_value=canonicalize(EntityType.PHONE, phone),
                 attributes={"synthetic": True, "carrier": "Synthetic Carrier"},
+                first_seen=timestamp,
+                last_seen=timestamp,
+                created_at=timestamp,
             )
         )
         vehicle = f"KA-00-SY-{index:04d}"
@@ -54,6 +60,9 @@ def generate_entities(count: int = 10, *, seed: int = 20260725, observed_at: dat
                 entity_value=vehicle,
                 canonical_value=canonicalize(EntityType.VEHICLE, vehicle),
                 attributes={"synthetic": True, "make": "Synthetic Motors", "model": "Demo"},
+                first_seen=timestamp,
+                last_seen=timestamp,
+                created_at=timestamp,
             )
         )
         upi = f"synthetic{index:04d}@demo"
@@ -64,6 +73,9 @@ def generate_entities(count: int = 10, *, seed: int = 20260725, observed_at: dat
                 entity_value=upi,
                 canonical_value=canonicalize(EntityType.UPI, upi),
                 attributes={"synthetic": True, "provider": "demo"},
+                first_seen=timestamp,
+                last_seen=timestamp,
+                created_at=timestamp,
             )
         )
     return entities

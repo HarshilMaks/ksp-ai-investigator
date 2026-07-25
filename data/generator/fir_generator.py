@@ -54,6 +54,8 @@ def generate_firs(count: int = 10, *, seed: int = 20260725, year: int = 2026) ->
                 priority=priority,
                 modus_operandi={"method": mo, "synthetic": True},
                 complainant_name=f"Synthetic Complainant {index:04d}",
+                created_at=registration_date,
+                updated_at=registration_date,
             )
         )
     return firs

@@ -23,7 +23,7 @@ def generate_network_records(
 ) -> tuple[list[Entity], list[FIREntityLink], list[Relationship]]:
     """Create evidence-backed links for each synthetic FIR."""
 
-    generated = generate_entities(len(firs), seed=seed)
+    generated = generate_entities(len(firs), seed=seed, observed_at=firs[0].registration_date if firs else None)
     entities = list(generated)
     links: list[FIREntityLink] = []
     relationships: list[Relationship] = []
@@ -39,20 +39,23 @@ def generate_network_records(
             entity_value=fir.fir_number,
             canonical_value=canonicalize(EntityType.FIR, fir.fir_number),
             attributes={"synthetic": True},
+            first_seen=fir.registration_date,
+            last_seen=fir.registration_date,
+            created_at=fir.registration_date,
         )
         entities.append(fir_entity)
         links.extend(
             [
-                FIREntityLink(fir.fir_id, person.entity_id, FIREntityRole.ACCUSED, extraction_method=ExtractionMethod.MANUAL),
-                FIREntityLink(fir.fir_id, phone.entity_id, FIREntityRole.MENTIONED, extraction_method=ExtractionMethod.REGEX),
-                FIREntityLink(fir.fir_id, vehicle.entity_id, FIREntityRole.VEHICLE_USED, extraction_method=ExtractionMethod.LOOKUP),
-                FIREntityLink(fir.fir_id, upi.entity_id, FIREntityRole.MENTIONED, extraction_method=ExtractionMethod.LOOKUP),
+                FIREntityLink(fir.fir_id, person.entity_id, FIREntityRole.ACCUSED, extraction_method=ExtractionMethod.MANUAL, extracted_at=fir.registration_date),
+                FIREntityLink(fir.fir_id, phone.entity_id, FIREntityRole.MENTIONED, extraction_method=ExtractionMethod.REGEX, extracted_at=fir.registration_date),
+                FIREntityLink(fir.fir_id, vehicle.entity_id, FIREntityRole.VEHICLE_USED, extraction_method=ExtractionMethod.LOOKUP, extracted_at=fir.registration_date),
+                FIREntityLink(fir.fir_id, upi.entity_id, FIREntityRole.MENTIONED, extraction_method=ExtractionMethod.LOOKUP, extracted_at=fir.registration_date),
             ]
         )
         relationships.extend(
             [
-                Relationship(person.entity_id, fir_entity.entity_id, RelationshipType.ACCUSED_IN, evidence_fir_ids=(fir.fir_id,)),
-                Relationship(person.entity_id, phone.entity_id, RelationshipType.OWNS_PHONE, strength=0.9, evidence_fir_ids=(fir.fir_id,)),
+                Relationship(person.entity_id, fir_entity.entity_id, RelationshipType.ACCUSED_IN, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
+                Relationship(person.entity_id, phone.entity_id, RelationshipType.OWNS_PHONE, strength=0.9, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
                 Relationship(person.entity_id, vehicle.entity_id, RelationshipType.OWNS_VEHICLE, strength=0.9, evidence_fir_ids=(fir.fir_id,)),
             ]
         )
@@ -67,6 +70,9 @@ def generate_network_records(
                     entity_value=station.name,
                     canonical_value=canonicalize(EntityType.POLICE_STATION, station.ps_code),
                     attributes={"ps_code": station.ps_code, "district": station.district, "synthetic": True},
+                    first_seen=fir.registration_date,
+                    last_seen=fir.registration_date,
+                    created_at=fir.registration_date,
                 )
             )
         relationships.append(
@@ -82,6 +88,9 @@ def generate_network_records(
                     entity_value=fir.crime_category,
                     canonical_value=canonicalize(EntityType.CRIME_CATEGORY, fir.crime_category),
                     attributes={"ipc_sections": list(fir.ipc_sections), "synthetic": True},
+                    first_seen=fir.registration_date,
+                    last_seen=fir.registration_date,
+                    created_at=fir.registration_date,
                 )
             )
         relationships.append(
