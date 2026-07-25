@@ -43,7 +43,7 @@ class VocabularyTests(unittest.TestCase):
 
     def test_canonical_forms_and_relationship_endpoints(self) -> None:
         self.assertEqual(
-            canonicalize(EntityType.PERSON, "Synthetic Person", {"dob": "1990-01-01", "father_name": "Synthetic Parent"}),
+            canonicalize(EntityType.PERSON, "Synthetic Person", attributes={"dob": "1990-01-01", "father_name": "Synthetic Parent"}),
             "SYNTHETIC PERSON|1990-01-01|SYNTHETIC PARENT",
         )
         self.assertEqual(canonicalize(EntityType.PHONE, "+91 0000000001"), "+910000000001")

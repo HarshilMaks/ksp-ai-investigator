@@ -54,9 +54,9 @@ def generate_network_records(
         )
         relationships.extend(
             [
-                Relationship(person.entity_id, fir_entity.entity_id, RelationshipType.ACCUSED_IN, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
-                Relationship(person.entity_id, phone.entity_id, RelationshipType.OWNS_PHONE, strength=0.9, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
-                Relationship(person.entity_id, vehicle.entity_id, RelationshipType.OWNS_VEHICLE, strength=0.9, evidence_fir_ids=(fir.fir_id,)),
+                Relationship(person.entity_id, fir_entity.entity_id, RelationshipType.ACCUSED_IN, relationship_id=_id(seed, "relationship", f"{index}:accused"), evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
+                Relationship(person.entity_id, phone.entity_id, RelationshipType.OWNS_PHONE, relationship_id=_id(seed, "relationship", f"{index}:phone"), strength=0.9, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
+                Relationship(person.entity_id, vehicle.entity_id, RelationshipType.OWNS_VEHICLE, relationship_id=_id(seed, "relationship", f"{index}:vehicle"), strength=0.9, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date),
             ]
         )
 
@@ -76,7 +76,7 @@ def generate_network_records(
                 )
             )
         relationships.append(
-            Relationship(fir_entity.entity_id, station_id, RelationshipType.JURISDICTION_OF, evidence_fir_ids=(fir.fir_id,))
+            Relationship(fir_entity.entity_id, station_id, RelationshipType.JURISDICTION_OF, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
         )
 
         category_id = category_entity_ids.setdefault(fir.crime_category, _id(seed, "category", fir.crime_category))
@@ -94,7 +94,7 @@ def generate_network_records(
                 )
             )
         relationships.append(
-            Relationship(fir_entity.entity_id, category_id, RelationshipType.CATEGORIZED_AS, evidence_fir_ids=(fir.fir_id,))
+            Relationship(fir_entity.entity_id, category_id, RelationshipType.CATEGORIZED_AS, evidence_fir_ids=(fir.fir_id,), discovered_at=fir.registration_date)
         )
 
     return entities, links, relationships
