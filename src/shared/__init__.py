@@ -2,9 +2,10 @@
 
 from .clock import isoformat_utc, utc_now
 from .config import Settings, SettingsError, load_settings
-from .errors import ApplicationError, ErrorResponse, new_request_id
+from .errors import AdapterUnavailableError, ApplicationError, ErrorResponse, new_request_id
 
 __all__ = [
+    "AdapterUnavailableError",
     "ApplicationError",
     "ErrorResponse",
     "Settings",

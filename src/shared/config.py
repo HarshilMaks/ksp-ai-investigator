@@ -53,6 +53,9 @@ class Settings:
     cache_enabled: bool = False
     stratus_enabled: bool = False
     catalyst_auth_enabled: bool = False
+    catalyst_external_enabled: bool = False
+    neo4j_enabled: bool = False
+    llm_enabled: bool = False
     groq_api_key: str | None = field(default=None, repr=False)
     gemini_api_key: str | None = field(default=None, repr=False)
     mistral_api_key: str | None = field(default=None, repr=False)
@@ -113,6 +116,9 @@ class Settings:
             cache_enabled=_read_bool(source, "CATALYST_CACHE_ENABLED", False),
             stratus_enabled=_read_bool(source, "CATALYST_STRATUS_ENABLED", False),
             catalyst_auth_enabled=_read_bool(source, "CATALYST_AUTH_ENABLED", False),
+            catalyst_external_enabled=_read_bool(source, "CATALYST_EXTERNAL_ENABLED", False),
+            neo4j_enabled=_read_bool(source, "NEO4J_ENABLED", False),
+            llm_enabled=_read_bool(source, "LLM_ENABLED", False),
             groq_api_key=_optional(source, "GROQ_API_KEY"),
             gemini_api_key=_optional(source, "GEMINI_API_KEY"),
             mistral_api_key=_optional(source, "MISTRAL_API_KEY"),

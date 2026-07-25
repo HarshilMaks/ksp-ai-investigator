@@ -1,0 +1,148 @@
+"""Authoritative logical vocabulary from database-schema.md and ontology.md."""
+
+from enum import Enum
+
+
+class EntityType(str, Enum):
+    PERSON = "Person"
+    PHONE = "Phone"
+    VEHICLE = "Vehicle"
+    UPI = "UPI"
+    BANK_ACCOUNT = "BankAccount"
+    LOCATION = "Location"
+    CCTV = "CCTV"
+    WEAPON = "Weapon"
+    ORGANIZATION = "Organization"
+    DOCUMENT = "Document"
+    DIGITAL_EVIDENCE = "DigitalEvidence"
+    ADDRESS = "Address"
+    FIR = "FIR"
+    POLICE_STATION = "PoliceStation"
+    CRIME_CATEGORY = "CrimeCategory"
+
+
+class FIRStatus(str, Enum):
+    OPEN = "OPEN"
+    UNDER_INVESTIGATION = "UNDER_INVESTIGATION"
+    CHARGESHEETED = "CHARGESHEETED"
+    CLOSED = "CLOSED"
+    REFERRED = "REFERRED"
+
+
+class Priority(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class FIREntityRole(str, Enum):
+    ACCUSED = "ACCUSED"
+    VICTIM = "VICTIM"
+    WITNESS = "WITNESS"
+    COMPLAINANT = "COMPLAINANT"
+    OWNER = "OWNER"
+    SUSPECT = "SUSPECT"
+    MENTIONED = "MENTIONED"
+    EVIDENCE = "EVIDENCE"
+    LOCATION = "LOCATION"
+    WEAPON_USED = "WEAPON_USED"
+    VEHICLE_USED = "VEHICLE_USED"
+
+
+class ExtractionMethod(str, Enum):
+    MANUAL = "MANUAL"
+    NER = "NER"
+    REGEX = "REGEX"
+    LOOKUP = "LOOKUP"
+    INFERENCE = "INFERENCE"
+
+
+class RelationshipType(str, Enum):
+    ACCUSED_IN = "ACCUSED_IN"
+    VICTIM_IN = "VICTIM_IN"
+    WITNESS_IN = "WITNESS_IN"
+    OWNS_PHONE = "OWNS_PHONE"
+    OWNS_VEHICLE = "OWNS_VEHICLE"
+    OWNS_ACCOUNT = "OWNS_ACCOUNT"
+    LOCATED_AT = "LOCATED_AT"
+    CAPTURED_BY = "CAPTURED_BY"
+    CALLED = "CALLED"
+    TRANSACTED_WITH = "TRANSACTED_WITH"
+    CO_ACCUSED_WITH = "CO_ACCUSED_WITH"
+    SHARES_PHONE_WITH = "SHARES_PHONE_WITH"
+    SHARES_VEHICLE_WITH = "SHARES_VEHICLE_WITH"
+    SHARES_UPI_WITH = "SHARES_UPI_WITH"
+    FINANCIAL_FLOW = "FINANCIAL_FLOW"
+    TEMPORAL_PROXIMITY = "TEMPORAL_PROXIMITY"
+    SAME_MODUS_OPERANDI = "SAME_MODUS_OPERANDI"
+    BELONGS_TO_GANG = "BELONGS_TO_GANG"
+    JURISDICTION_OF = "JURISDICTION_OF"
+    CATEGORIZED_AS = "CATEGORIZED_AS"
+
+
+class DiscoveryMethod(str, Enum):
+    MANUAL = "MANUAL"
+    COMPUTED = "COMPUTED"
+    NER = "NER"
+    CDR_ANALYSIS = "CDR_ANALYSIS"
+    FINANCIAL_ANALYSIS = "FINANCIAL_ANALYSIS"
+    PATTERN_MATCH = "PATTERN_MATCH"
+
+
+class InvestigationStatus(str, Enum):
+    OPEN = "OPEN"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    CLOSED = "CLOSED"
+    MERGED = "MERGED"
+
+
+class TimelineEventType(str, Enum):
+    CRIME_OCCURRED = "CRIME_OCCURRED"
+    FIR_FILED = "FIR_FILED"
+    ARREST = "ARREST"
+    BAIL = "BAIL"
+    EVIDENCE_COLLECTED = "EVIDENCE_COLLECTED"
+    WITNESS_STATEMENT = "WITNESS_STATEMENT"
+    CHARGESHEET = "CHARGESHEET"
+    COURT_HEARING = "COURT_HEARING"
+    SIGHTING = "SIGHTING"
+    COMMUNICATION = "COMMUNICATION"
+    TRANSACTION = "TRANSACTION"
+    CUSTOM = "CUSTOM"
+
+
+class CardType(str, Enum):
+    NETWORK_INTELLIGENCE = "NETWORK_INTELLIGENCE"
+    OFFENDER_PROFILE = "OFFENDER_PROFILE"
+    HOTSPOT = "HOTSPOT"
+    FINANCIAL_TRAIL = "FINANCIAL_TRAIL"
+    SIMILAR_CASE = "SIMILAR_CASE"
+
+
+class AuditAction(str, Enum):
+    SEARCH = "SEARCH"
+    VIEW = "VIEW"
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+    EXPORT = "EXPORT"
+    SHARE = "SHARE"
+    ESCALATE = "ESCALATE"
+    VERIFY = "VERIFY"
+    LOGIN = "LOGIN"
+    LOGOUT = "LOGOUT"
+    QUERY_ONTOLOGY = "QUERY_ONTOLOGY"
+    GENERATE_CARD = "GENERATE_CARD"
+    CREATE_INVESTIGATION = "CREATE_INVESTIGATION"
+    ADD_EVIDENCE = "ADD_EVIDENCE"
+    LINK_CASES = "LINK_CASES"
+
+
+# The crime-domain document records these as canonical MVP concepts, but they are
+# not admitted by the entity_type CHECK constraint in database-schema.md yet.
+SCHEMA_EXTENSION_ENTITY_TYPES = frozenset({"IMEI", "Evidence", "District"})
+SCHEMA_EXTENSION_RELATIONSHIP_TYPES = frozenset(
+    {"USED_IN", "OCCURRED_AT", "REGISTERED_AT", "BELONGS_TO", "CONTACTED", "LINKED_TO"}
+)

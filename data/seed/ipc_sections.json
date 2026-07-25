@@ -1,0 +1,6 @@
+{
+  "IPC_356": {"bns": "BNS_304", "description": "Synthetic chain-snatching fixture", "category": "Against Property"},
+  "IPC_379": {"bns": "BNS_303", "description": "Synthetic theft fixture", "category": "Against Property"},
+  "IPC_406": {"bns": "BNS_316", "description": "Synthetic breach-of-trust fixture", "category": "Against Property"},
+  "IPC_420": {"bns": "BNS_318", "description": "Synthetic cheating fixture", "category": "Against Property"}
+}

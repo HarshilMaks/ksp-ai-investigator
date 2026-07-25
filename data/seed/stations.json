@@ -1,0 +1,6 @@
+[
+  {"ps_code": "KA-BLR-C-042", "district_code": "BLR-C", "station_number": "042", "name": "Whitefield Synthetic Police Station", "district": "Bangalore City", "zone": "East Zone"},
+  {"ps_code": "KA-BLR-C-006", "district_code": "BLR-C", "station_number": "006", "name": "KR Puram Synthetic Police Station", "district": "Bangalore City", "zone": "East Zone"},
+  {"ps_code": "KA-BLR-C-051", "district_code": "BLR-C", "station_number": "051", "name": "Jayanagar Synthetic Police Station", "district": "Bangalore City", "zone": "South Zone"},
+  {"ps_code": "KA-MYS-015", "district_code": "MYS", "station_number": "015", "name": "Devaraja Synthetic Police Station", "district": "Mysore", "zone": "Mysore Zone"}
+]

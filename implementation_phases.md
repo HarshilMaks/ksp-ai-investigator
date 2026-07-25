@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P02`
+> Current phase: `P04`
 > Current state: `IN_PROGRESS`
 
 ## 1. Operating Contract
@@ -125,7 +125,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P02 — Python backend scaffold and configuration
 
-- **Status:** `IN_PROGRESS`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P01`
 - **Owner scope:** Python package, pinned dependencies, typed configuration
 - **Tasks:** create package boundaries for `src/shared`, `src/domain`, `src/engines`, `src/registry`, `src/orchestration`, `src/adapters`; implement environment parsing and validation; add `.env.example`; pin dependencies; standardize error envelopes and request IDs.
@@ -138,7 +138,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P03 — Catalyst integration boundaries and local adapters
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P02`
 - **Owner scope:** Catalyst Data Store, Cache, Stratus, Signals, Cron, Circuits, Auth boundaries
 - **Tasks:** define typed ports/interfaces; implement local in-memory/file adapters for development; add Catalyst adapter stubs with validated request/response shapes; implement Neo4j client boundary with Bolt port `7687`; add LiteLLM model-router boundary.
@@ -150,7 +150,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P04 — Logical data contracts and synthetic fixtures
 
-- **Status:** `PLANNED`
+- **Status:** `IN_PROGRESS`
 - **Dependencies:** `P02`, `P03`
 - **Owner scope:** domain models, schema mapping, synthetic data
 - **Tasks:** model FIRs, entities, FIR-entity links, relationships, investigations, evidence, timeline, engine runs, provenance, cards, and audit records; implement Karnataka/CCTNS identifiers and IPC/BNS mappings; create deterministic synthetic fixture generators; document logical-to-Catalyst mapping gaps.
@@ -366,7 +366,27 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Review-gate evidence:** `pyproject.toml` records Python-only backend, Python 3.11 deployment, synthetic-only data, REST/SSE/multipart protocols, ports 7687/7474, and 30/60/300-second timeout values. `.LOCK/TODO.md` and `session-ses_0754.md` remain ignored; `.LOCK/TODO.md` has no diff. No external service or secret was added.
 - **Known blockers:** Local `pytest` is unavailable, so Phase 1 uses the standard-library `unittest` runner through `uv`; framework-specific tests are deferred to later phases.
 
-### Review records: P02–P20
+### Review record: P02 — Python backend scaffold and configuration
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-25T18:28:21Z
+- **Completed:** 2026-07-25T18:30:39Z
+- **Implementation evidence:** Added stdlib-only `src/shared/config.py`, `src/shared/errors.py`, and `src/shared/clock.py`; package boundaries for `src/shared`, `src/domain`, `src/engines`, `src/registry`, `src/orchestration`, `src/adapters`, and Catalyst function package initialization; `.env.example`; setuptools package discovery; and `tests/unit/shared/test_config.py`. `uv.lock` remains the dependency lock and no runtime service SDK was introduced.
+- **Validation evidence:** `uv lock` resolved successfully; `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran 13 tests with `OK`; `uv run python -m compileall -q src functions tests` passed; P02 configuration smoke assertions passed; `git diff --check` passed.
+- **Review-gate evidence:** Settings represent the locked Neo4j ports `7687`/`7474`, API/signal/job timeouts `30`/`60`/`300`, four-provider model chain, BGE-M3 1024-dimensional embeddings, Catalyst identifiers, Data Store/Cache/Stratus/Auth flags, and all four provider credential variables. Local/test mode permits deterministic execution without credentials; Catalyst/production mode requires deployment identifiers and Neo4j credentials, rejects insecure HTTPS boundaries, rejects locked-port overrides, and redacts credentials from repr/diagnostics. No secrets or private files were added; `.LOCK/TODO.md` and `session-ses_0754.md` remain ignored and unchanged.
+- **Known blockers:** Formatter/linter/type checker are not configured yet; their setup is deferred to the planned tooling phase. No Catalyst compatibility claim was made.
+
+### Review record: P03 — Catalyst integration boundaries and local adapters
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-25T18:31:14Z
+- **Completed:** 2026-07-25T18:33:52Z
+- **Implementation evidence:** Added typed `src/shared/ports.py`; local Data Store, Cache, Object Store, Event Bus, and Auth adapters; disabled-by-default Catalyst service wrappers; `Neo4jClient` Bolt boundary; `LiteLLMRouter` provider-neutral boundary; cache/Stratus factories; thin `functions/shared` configuration bridge; and adapter contract tests. External SDK imports and business logic were not introduced.
+- **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran 20 tests with `OK`; `uv run python -m compileall -q src functions tests` passed; P03 review assertions passed; `git diff --check` passed.
+- **Review-gate evidence:** Default local/test settings select local adapters; Catalyst, Neo4j, and LLM adapters raise typed disabled/unconfigured errors without network calls. Injected fake transports/backends verify typed request shapes and locked LLM fallback order. Neo4j boundary preserves Bolt `7687` and HTTP `7474`; connection settings remain centralized in `Settings`; only REST/SSE/multipart remain declared external protocols; no agent or engine access path was added.
+- **Known blockers:** Actual Catalyst SDK, Neo4j driver, and LiteLLM provider compatibility remain intentionally unvalidated and deferred to later integration/deep-path phases. No credentials were required.
+
+### Review records: P04–P20
 
 - **Status:** `PLANNED`
 - **Evidence:** not started

@@ -58,5 +58,10 @@ class ApplicationError(Exception):
             details=self.details,
         )
 
+
 class ConfigurationError(ApplicationError, ValueError):
     """Configuration is missing, malformed, or unsafe for the selected environment."""
+
+
+class AdapterUnavailableError(ApplicationError):
+    """An optional external adapter is disabled or not configured."""
