@@ -27,3 +27,20 @@ __all__ = [
     "Reporter",
     "DEFAULT_AGENT_SEQUENCE",
 ]
+from .intelligence import (
+    AgentFinding,
+    EngineCapabilityAgent,
+    ForecastingAgent,
+    FinancialIntelligenceAgent,
+    GraphIntelligenceAgent,
+    LeadRankingAgent,
+    PatternIntelligenceAgent,
+    TimelineIntelligenceAgent,
+    interpret_validated_result,
+)
+
+__all__.extend([
+    "AgentFinding", "EngineCapabilityAgent", "ForecastingAgent", "FinancialIntelligenceAgent",
+    "GraphIntelligenceAgent", "LeadRankingAgent", "PatternIntelligenceAgent", "TimelineIntelligenceAgent",
+    "interpret_validated_result",
+])
