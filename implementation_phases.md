@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P18`
+> Current phase: `P20`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -331,7 +331,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P19 — Performance, quality, capacity, and resilience evaluation
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P18`
 - **Owner scope:** benchmark harness, load tests, quality metrics, failure modes
 - **Tasks:** measure p50/p95/p99 latency, first token/SSE timing, query throughput, cache behavior, vector/graph performance, citation coverage, unsupported claims, Precision@K/Recall@K where labels exist, entity-resolution quality, language parity, token/cost usage; run capacity tests against synthetic scale targets.
@@ -343,7 +343,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P20 — Final architecture, security, and demo review
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P19`
 - **Owner scope:** release readiness and final evidence
 - **Tasks:** run complete unit/integration/e2e suite; inspect schema/ontology/tool/workflow/card/workspace alignment; verify environment and connection configuration; scan secrets/private files; validate deployment manifests; update this plan with final evidence and known limitations.
@@ -538,6 +538,26 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Validation evidence:** Focused P18 scenario suite ran **3 tests with `OK`**; full repository discovery ran **105 tests with `OK`**; seed and smoke scripts ran locally without external services; all ten scenarios have routes, engines, cards, synthetic citations, deterministic fallbacks, and replay-stable digests; Scenario 6 is system-initiated with no opening query; compileall and `git diff --check` passed.
 - **Review-gate evidence:** Fixtures contain no real records and enforce `SYNTHETIC-*` citations. Scenario assertions cover fast/deep/signals routes, relevant engine/card metadata, proactive-first behavior, deterministic replay, demo ordering, and provider-independent local fallback. The demo documentation explicitly avoids claims of measured accuracy, capacity, latency, or real investigative outcomes.
 - **Known blockers:** P19 owns performance, quality, capacity, and resilience measurement; no scenario fixture is evidence of production accuracy or throughput. P20 owns final architecture/security/demo review.
+
+### Review record: P19 — Performance, quality, capacity, and resilience evaluation
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T16:25:00Z
+- **Completed:** 2026-07-26T16:35:00Z
+- **Implementation evidence:** Added `benchmarks/benchmark.py`, `scripts/benchmark.py`, `tests/performance/test_benchmark.py`, `tests/load/test_load_contract.py`, and `docs/benchmarks.md`. The harness measures local scenario construction/serialization, typed-card serialization, SSE encoding, throughput, citation/synthetic coverage, deterministic replay, and optional-model degradation. It emits machine-readable JSON with explicit pending measurements.
+- **Validation evidence:** P19 benchmark/load suite ran **4 tests with `OK`**; the CLI produced `/tmp/ksp-investigateai-benchmark.json` with schema `p19.1`, 4 timing series, citation coverage `1.0`, zero external service calls, and 7 pending production measurements. Full repository discovery ran **109 tests with `OK`**; frontend typecheck/lint/build passed; synthetic demo seed/smoke passed; compileall and `git diff --check` passed.
+- **Review-gate evidence:** Results are local measurements only and include p50/p95/p99/min/max and throughput; quality metrics do not claim labeled accuracy; resilience checks confirm bounded fixture replay and optional-model degradation without external calls. Pending items explicitly include Catalyst/AppSail/Neo4j/pgvector/live-SSE/model/provider/capacity validation.
+- **Known blockers:** No live credentials, deployment services, labeled datasets, provider assets, or production capacity environment are available, so those metrics remain pending rather than being inferred.
+
+### Review record: P20 — Final architecture, security, and demo review
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T16:40:00Z
+- **Completed:** 2026-07-26T16:50:00Z
+- **Final validation evidence:** Backend `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **109 tests with `OK`**. Frontend `npm run typecheck`, `npm run lint`, and `npm run build` all passed on Next.js 15.5.22; build generated `/`, `/_not-found`, and `/investigations/[investigationId]`. Final synthetic demo seed/smoke passed with 10 scenarios and order `(3, 1, 6, 5, 4, 10)`. Python compileall and `git diff --check` passed.
+- **Architecture/security review evidence:** Static checks found no direct database/provider imports in agents or orchestration, no public `/api/v1/tools` route, no credential literals in source outside intentional centralized config field names, and no hidden secret in the reviewed source paths. `.env`, `.LOCK/TODO.md`, and `session-ses_0754.md` are ignored; locked/private files were not modified. Existing P08 fast path, P09 state/checkpoint ownership, Catalyst authority, Neo4j projection role, Runner boundary, T01–T23 registry, P10 REST/SSE/multipart boundary, P11 FSD workspace, P14 cards, and P18 synthetic scenarios remain represented by passing tests and phase review records.
+- **Final limitation evidence:** Live Catalyst/AppSail/Auth/SSE/Neo4j/model deployment, browser automation, Docker Neo4j execution, labeled accuracy, provider cost, and production capacity remain explicitly documented in `docs/limitations.md` and are not claimed as complete. The final demo is local and synthetic-only.
+- **Release conclusion:** All implementation phases P01–P20 have concrete implementation and validation records. No commit or push was performed.
 
 ### Architecture migration record — temporary runtime strategy (pre-P09)
 

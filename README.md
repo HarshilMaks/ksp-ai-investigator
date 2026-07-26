@@ -22,9 +22,9 @@ The implementation follows the locked domain architecture and the temporary runt
 
 ## Current implementation state
 
-Phases `P01`–`P18` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search and intelligence engines, the P08 evidence-gated fast path, P09 persistent investigation state/checkpointing, P10 versioned REST/SSE/multipart API boundaries, the P11 Next.js investigation workspace shell, P12 portable Runner/agent contracts, P14 typed intelligence-card materialization/lifecycle storage, P15 idempotent signals/entity resolution/scoped alerts, P16 RBAC/masking/hash-chain audit governance, P17 optional multilingual/voice/OCR/report boundaries, and P18 ten deterministic synthetic scenarios with local demo seed/smoke wiring.
+Phases `P01`–`P20` are complete. The repository now contains the Python domain contracts, synthetic fixtures and ten replayable scenarios, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search and intelligence engines, the P08 evidence-gated fast path, persistent investigation state/checkpointing, versioned REST/SSE/multipart APIs, the Next.js investigation workspace, portable Runner/agent contracts, typed intelligence-card lifecycle storage, idempotent signals/entity resolution/scoped alerts, RBAC/masking/hash-chain audit governance, optional multilingual/voice/OCR/report boundaries, reproducible P19 benchmark/quality/resilience evaluation, and the P20 final review evidence.
 
-`P19` — performance, quality, capacity, and resilience evaluation — is next. Scenario outputs are synthetic, cited, qualified, and replayable; no performance or accuracy claim is made without measurement.
+The implementation is locally validated and synthetic-only. Production Catalyst/AppSail/Auth/SSE/Neo4j/model deployment, labeled accuracy, provider cost, and production capacity remain explicitly pending where the environment has no live services, credentials, or model assets. See [`docs/limitations.md`](docs/limitations.md), [`docs/benchmarks.md`](docs/benchmarks.md), and [`docs/demo-script.md`](docs/demo-script.md).
 
 ## Safety and scope
 
