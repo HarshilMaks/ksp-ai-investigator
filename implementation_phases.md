@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P05`
+> Current phase: `P06`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -174,7 +174,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P06 — Typed T01–T23 registry
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P04`, `P03`
 - **Owner scope:** registry schemas, dispatch, authorization/audit metadata
 - **Tasks:** implement all 23 Pydantic input/output contracts; create registry manifest; validate limits, allowed values, scope, and timeout; dispatch each tool to its owner engine/reasoning stage; reject unknown/public direct tool routes.
@@ -407,7 +407,17 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Deployment evidence:** Docker container smoke execution could not run because Docker Desktop integration is unavailable in the WSL 2 distro (`The command 'docker' could not be found in this WSL 2 distro`). Static Dockerfile/config/schema assertions and all projection tests passed as the required alternative validation path.
 - **Known blockers:** Actual Neo4j driver wiring, Catalyst persistence, and live container schema execution remain intentionally deferred to the later integration/runtime phases; no deployment or performance claim is made.
 
-### Review records: P06–P20
+### Review record: P06 — Typed T01–T23 registry
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T12:19:07Z
+- **Completed:** 2026-07-26T12:21:26Z
+- **Implementation evidence:** Added pinned `pydantic==2.11.7`; implemented all 23 Pydantic input contracts and typed output envelopes in `src/registry/schemas.py`; created the exact T01–T23 manifest with owners, deterministic/reasoning stages, authorization permissions, audit actions, citation requirements, public-route prohibition, and timeout budgets in `src/registry/manifest.py`; added fail-closed injected-handler dispatch and authorization context in `src/registry/tools.py` and `src/registry/dispatch.py`; exported the registry from `src/registry/__init__.py`; and added registry unit tests.
+- **Validation evidence:** `uv lock` resolved the pinned dependency; `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **46 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; `p06_registry_completeness: passed`; `p06_phase_boundary_contracts: passed`; `git diff --check` passed; private-file ignore checks passed.
+- **Review-gate evidence:** Exactly T01–T23 are registered; extra fields and invalid enum/range values are rejected; cross-field required subjects are validated; T15 is deterministic `lead_ranking`; T20 is `evidence_explainability`; T22 is `investigation_state` with `ADD_EVIDENCE`; unknown tools, unauthorized calls, public direct routes, over-budget calls, missing handlers, and invalid handler outputs fail closed; planner/tool parameters contain no unrestricted SQL/Cypher execution path; output contracts preserve citations and warnings.
+- **Known blockers:** Registry handlers are injected boundaries only; deterministic retrieval/analysis engines and orchestration are intentionally deferred to P07–P13. No public API route or external service integration was added.
+
+### Review records: P07–P20
 
 - **Status:** `PLANNED`
 - **Evidence:** not started
