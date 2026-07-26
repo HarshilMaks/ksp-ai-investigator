@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P12`
+> Current phase: `P16`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -259,7 +259,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P13 — Deterministic intelligence engines and agent business capabilities
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P05`, `P07`, `P12`
 - **Owner scope:** graph, pattern, behavioral, financial, forecasting, timeline, lead-ranking engines and their Strands agent business logic
 - **Tasks:** implement bounded graph traversal/community/centrality/path tools; MO and temporal pattern analysis; behavioral profile features; financial flow/layering indicators; hotspot/forecast signals with uncertainty; timeline reconstruction; deterministic lead ranking; connect the corresponding Strands agents to validated engine/tool outputs without creating a local skill/orchestration platform.
@@ -271,7 +271,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P14 — Intelligence card materialization and lifecycle
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P09`, `P13`, `P08`
 - **Owner scope:** 15 cards, storage tiers, versioning, freshness, rendering contracts
 - **Tasks:** implement typed schemas for all 15 cards; metadata index; canonical Stratus/local object storage; cache adapter; version/supersession; stale/refresh/archive transitions; card-to-evidence provenance.
@@ -283,7 +283,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P15 — Signals, proactive alerts, and entity resolution
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P05`, `P09`, `P13`, `P14`, `P10`
 - **Owner scope:** ingestion events, matching, alert delivery, merge review
 - **Tasks:** implement idempotent FIR ingestion pipeline; entity normalization/resolution as a first-class subsystem; human approval for Person merges; exact auto-merge only for locked identifier types; active-investigation matching; proactive-first workspace feed showing new linked FIRs before query input; alert cards and SSE delivery; card invalidation.
@@ -295,7 +295,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P16 — RBAC, masking, immutable audit, and governance hardening
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P03`, `P06`, `P09`, `P10`, `P15`
 - **Owner scope:** application authorization integration, Catalyst/Hexel policy integration, scope filtering, PII masking, hash-chain audit
 - **Tasks:** integrate SHO/IO/DCP/Analyst/SP policies without rebuilding a policy platform; enforce station/district/case scope; analyst masking; permission checks before tools, agents, cards, alerts, exports, and reports; SHA-512/hash-chain audit records; audit verification; secure export classification.
@@ -478,6 +478,46 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Validation evidence:** Focused P12 suite ran **7 tests with `OK`**. Full repository discovery ran **82 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; `git diff --check` passed; an import audit found no direct database/provider imports in `src/orchestration` or `src/agents`.
 - **Review-gate evidence:** `LocalRunner` only validates input, constructs `AgentContext`, invokes the declared agent sequence, passes each returned `InvestigationState` forward, and returns the final state. It has no persistence, scheduling, retries, streaming, distribution, cancellation, or workflow graph. Agents only accept context and return shared state; they do not invoke other agents or access Catalyst, Neo4j, or provider clients. `HexelRunner` satisfies the same structural protocol, delegates only to an injected future adapter, and never silently falls back to LocalRunner. Existing P08 fast-path tests remain green and the T01–T23 registry is unchanged.
 - **Known blockers:** Agent business capabilities, deterministic intelligence engines, and real Strands model calls are intentionally deferred to P13 and later; Hexel runtime integration remains future deployment work. No local orchestration platform, gateway, skill system, policy engine, MCP server, or durable execution layer was added.
+
+### Review record: P13 — Deterministic intelligence engines and agent business capabilities
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T14:45:00Z
+- **Completed:** 2026-07-26T14:55:00Z
+- **Implementation evidence:** Added shared typed provenance/uncertainty metadata in `src/engines/intelligence_types.py`; bounded graph centrality/community/path analysis in `src/engines/graph_analysis.py` exposed through the existing `graph_intelligence` boundary; deterministic MO/temporal patterns, behavioral profiles, financial flow/layering indicators, hotspot forecast signals, timeline reconstruction/gap detection, and evidence-weighted lead ranking in `src/engines/pattern_analysis.py`, `behavioral_profiling.py`, `financial_analysis.py`, `forecasting.py`, `timeline.py`, and `lead_ranking.py`. Added `src/agents/intelligence.py` capability agents that interpret validated engine results without recomputing facts.
+- **Validation evidence:** Focused P13 suite ran **6 tests with `OK`**; full repository discovery ran **88 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; deterministic repeated-input equality, source evidence extraction, bounds, empty/partial input behavior, and capability-agent validation were exercised.
+- **Review-gate evidence:** Engine metadata records algorithm/version/parameters/input bounds; every non-empty signal carries source evidence; uncertainty is explicit and forecast outputs include intervals and limitations. Graph hops/candidates, event/transaction/observation counts, timeline size, and lead candidates are bounded. Agents accept typed validated results, preserve the shared `InvestigationState`, and mark findings for human review. No engine or agent declares guilt, legal sufficiency, or guaranteed future conduct; no LLM computes totals, paths, dates, scores, or forecasts; no orchestration/platform service was added.
+- **Known blockers:** These are local deterministic business-capability implementations over supplied records; Catalyst/Neo4j production data wiring, measured forecast calibration, Strands model invocation, and scenario-scale performance validation remain later deployment/quality work. P14 owns intelligence-card materialization and lifecycle.
+
+### Review record: P14 — Intelligence card materialization and lifecycle
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T15:05:00Z
+- **Completed:** 2026-07-26T15:15:00Z
+- **Implementation evidence:** Added `src/domain/cards.py` with all 15 locked product-card payload types, discriminated validation, confidence/provenance/timestamp/human-review requirements, freshness/status/version fields, and immutable lifecycle helpers. Added `src/services/cards.py` for canonical materialization, monotonically increasing versions, stale/archive transitions, and historical retrieval. Added `src/adapters/card_store.py` with an in-memory hot-cache implementation and atomic local canonical JSON plus metadata-index persistence.
+- **Validation evidence:** Focused P14 card suite ran **4 tests with `OK`**; full repository discovery ran **92 tests with `OK`**; all 15 card types were instantiated and validated; canonical JSON survived a fresh local-store instance; version/supersession history, stale evaluation, archive, confidence bounds, and provenance requirements were exercised; compileall and `git diff --check` passed.
+- **Review-gate evidence:** The card vocabulary is exactly the 15 locked product types and remains separate from logical entities. Storage follows canonical JSON → metadata index → hot cache; local storage uses atomic replacement and the adapter is intentionally provider-neutral. Card payloads carry engine/source provenance, confidence, timestamps, lifecycle status, and human-review markers; old versions remain retrievable. No card declares legal sufficiency, guilt, or guaranteed future conduct.
+- **Known blockers:** Stratus/Catalyst Cache production API wiring, card event delivery, full React card-specific renderers, and measured retention/latency remain deployment or later integration work. P15 owns signals, proactive alerts, and entity resolution.
+
+### Review record: P15 — Signals, proactive alerts, and entity resolution
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T15:25:00Z
+- **Completed:** 2026-07-26T15:33:00Z
+- **Implementation evidence:** Added `src/services/signals.py` and thin `functions/signals/` delegates for replay-safe synthetic FIR ingestion, source/entity validation, and active-investigation matching. Added `src/services/entity_resolution.py` with normalization, exact locked-identifier auto-merge boundaries, and explicit officer approval/rejection for Person suggestions. Added `src/services/proactive_alerts.py` to materialize authorized P14 alert cards, acknowledge/expire them, and enforce investigation scope.
+- **Validation evidence:** Focused P15 suite ran **3 tests with `OK`**; full repository discovery ran **95 tests with `OK`**; replay/idempotency, active-investigation matching, Person approval, locked-identifier auto-merge, alert authorization, acknowledgement, and expiry were exercised; compileall and `git diff --check` passed.
+- **Review-gate evidence:** Replaying an event does not invoke callbacks or duplicate signal state; only explicitly watched active investigations match; Person records never auto-merge; exact locked identifier types are the only auto-merge path; alert creation and mutation require investigation-scoped authorization; alerts are materialized as P14 cards with source provenance and a 48-hour policy TTL. No broad broadcast, silent merge, ungrounded alert, or direct provider/database integration was added.
+- **Known blockers:** Catalyst Signals/Cron/Event Bus transport, production SSE alert delivery, measured delivery lag, richer matching rules, and card invalidation across external caches remain deployment/integration work. P16 owns RBAC, masking, immutable audit, and governance hardening.
+
+### Review record: P16 — RBAC, masking, immutable audit, and governance hardening
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T14:45:00Z
+- **Completed:** 2026-07-26T14:55:00Z
+- **Implementation evidence:** Added `src/shared/auth.py` for external-claims-to-application-context adaptation, `src/shared/permissions.py` for the SHO/IO/DCP/Analyst/SP operation matrix and station/district/investigation scope checks, `src/shared/masking.py` for recursive Analyst PII masking and secret redaction, and `src/services/audit.py` for immutable SHA-512 chained audit records and verification. Added the thin `functions/signals/audit_logger.py` hook.
+- **Validation evidence:** Focused P16 governance suite ran **3 tests with `OK`**; full repository discovery ran **98 tests with `OK`**; role/scope fail-closed checks, Analyst masking, secret-safe audit details, hash-chain verification, tamper detection, and human-review defaults were exercised; `uv run python -m compileall -q src functions data tests` and `git diff --check` passed.
+- **Review-gate evidence:** Application checks cover reads, mutations, tools, agents, cards, alerts, exports, and reports through one operation matrix; investigation/station/district scope mismatches fail closed; Analyst output masks PII while preserving non-sensitive structure; audit details redact secrets before storage; each record chains to the previous SHA-512 digest and tampering invalidates verification; consequential records default to human review. Catalyst/Hexel policy is adapted at the boundary and not rebuilt locally.
+- **Known blockers:** Live Catalyst Auth/Hexel policy integration, production audit persistence, external secret scanners, secure export transport, and deployment security validation remain environment work. P17 owns multilingual, voice, OCR, and report boundaries.
 
 ### Architecture migration record — temporary runtime strategy (pre-P09)
 

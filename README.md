@@ -22,9 +22,9 @@ The implementation follows the locked domain architecture and the temporary runt
 
 ## Current implementation state
 
-Phases `P01`–`P12` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search engines, the P08 evidence-gated fast path, P09 persistent investigation state/checkpointing, P10 versioned REST/SSE/multipart API boundaries, the P11 Next.js investigation workspace shell, and the P12 portable Runner/agent contracts.
+Phases `P01`–`P16` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search and intelligence engines, the P08 evidence-gated fast path, P09 persistent investigation state/checkpointing, P10 versioned REST/SSE/multipart API boundaries, the P11 Next.js investigation workspace shell, P12 portable Runner/agent contracts, P14 typed intelligence-card materialization/lifecycle storage, P15 idempotent signals/entity resolution/scoped alerts, and P16 RBAC/masking/hash-chain audit governance.
 
-`P13` — deterministic intelligence engines and agent business capabilities — is next. The P08 fast path remains outside the Runner, and the P12 LocalRunner only passes `InvestigationState` through injected agents. See [`docs/api-reference.md`](docs/api-reference.md) for the current API contract.
+`P17` — multilingual, voice, document, and report boundaries — is next. External Catalyst/Hexel policy remains an integration boundary; application authorization fails closed before sensitive operations, and consequential outputs remain human-review qualified.
 
 ## Safety and scope
 
