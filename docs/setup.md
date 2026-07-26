@@ -19,6 +19,24 @@ git status --short --ignored
 `uv run` creates/uses the project environment and resolves the locked Python 3.11 interpreter when available. `pytest` and service dependencies are introduced only in later phases after the configuration and adapter boundaries are established. Do not use raw `python`/`pip` commands for implementation or dependency management, and do not install or commit secrets as part of the baseline.
 
 ## Local boundaries
+## Makefile workflow
+
+The repository Makefile wraps the locked `uv` and `npm` workflows without adding a formatter or linter dependency:
+
+```bash
+make help          # list all targets
+make install       # uv sync
+make api-reload    # start FastAPI with local auto-reload
+make health        # check http://127.0.0.1:8000/health
+make web           # start the Next.js client
+make check         # compile, whitespace/format checks, and all Python tests
+make test-api      # run FastAPI/API boundary tests
+make demo-smoke    # generate and validate synthetic demo data
+make benchmark     # run the local reproducible benchmark
+make clean         # remove caches; preserves .local/checkpoints
+```
+
+Frontend dependencies and checks are available through `make web-install`, `make web-build`, `make web-lint`, and `make web-typecheck`. Use `make clean-runtime` or `make clean-checkpoints` only when intentionally removing ignored local runtime state.
 
 - Core business logic belongs in `src/`.
 - Catalyst entry points belong in `functions/` and must delegate to `src/`.
