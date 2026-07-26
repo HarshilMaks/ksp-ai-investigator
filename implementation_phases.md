@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P17`
+> Current phase: `P18`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -319,7 +319,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P18 — Ten scenario integration suite and demo wiring
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P11`, `P12`, `P13`, `P14`, `P15`, `P16`, `P17`
 - **Owner scope:** end-to-end synthetic scenarios and demo fixtures
 - **Tasks:** implement all ten scenario fixtures as CI integration tests; verify primary six demo order; wire workspace artifacts, proactive alerts, hypotheses, handover, and strategic briefing; add deterministic fallback fixtures for provider outages.
