@@ -29,6 +29,10 @@ The PostgreSQL DDL remains a logical reference. P04 does not execute or claim co
 SyntheticFixture
 ├── firs
 ├── entities
+
+## Catalyst repository persistence
+
+The exact table-by-table Catalyst repository mapping, checkpoint separation, normalized P09 projections, and explicit card/audit compatibility translations are documented in [`docs/catalyst-persistence.md`](catalyst-persistence.md). Catalyst physical deployment remains unvalidated; this repository layer uses only the existing typed `DataStorePort` boundary.
 ├── fir_entities
 └── relationships
 ```

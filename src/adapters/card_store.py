@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Protocol
 
+from src.adapters.catalyst.repositories import IntelligenceCardRepository
 from src.domain.cards import CardRecord, CardStatus, CardType
+from src.shared.ports import DataStorePort
 
 
 class CardStore(Protocol):
@@ -89,6 +93,81 @@ class LocalCardStore(InMemoryCardStore):
         os.replace(temporary, self.index_path)
 
 
+class CatalystCardStore:
+    """CardStore-compatible adapter backed by Catalyst Data Store.
+
+    The card lifecycle service is intentionally synchronous for compatibility
+    with existing engine services, while DataStorePort is async. Writes are
+    completed before returning; if called from an active event loop, the
+    coroutine runs in a short-lived worker thread rather than nesting event
+    loops in the request thread.
+    """
+
+    def __init__(self, data_store: DataStorePort) -> None:
+        self.repository = IntelligenceCardRepository(data_store)
+
+    def put(self, card: CardRecord) -> None:
+        _run_sync(self.repository.save_card(card))
+
+    def get(self, card_id: str, version: int | None = None) -> CardRecord | None:
+        return _run_sync(self.repository.get_card(card_id, version))
+
+    def versions(self, card_id: str) -> tuple[CardRecord, ...]:
+        rows = _run_sync(self.repository.list({"card_id": card_id}))
+        records = []
+        for row in rows:
+            data = row.get("data")
+            if isinstance(data, dict):
+                try:
+                    records.append(CardRecord.model_validate(data))
+                except (TypeError, ValueError):
+                    continue
+        return tuple(sorted(records, key=lambda record: record.version))
+
+    def list_metadata(
+        self,
+        *,
+        investigation_id: str | None = None,
+        card_type: CardType | None = None,
+    ) -> tuple[dict[str, object], ...]:
+        rows = _run_sync(self.repository.list({}))
+        records = []
+        for row in rows:
+            data = row.get("data")
+            if not isinstance(data, dict):
+                continue
+            try:
+                card = CardRecord.model_validate(data)
+            except (TypeError, ValueError):
+                continue
+            payload = card.payload
+            if investigation_id is not None and getattr(payload, "investigation_id", None) != investigation_id:
+                continue
+            if card_type is not None and payload.card_type != card_type:
+                continue
+            records.append(
+                {
+                    "card_id": card.card_id,
+                    "card_type": payload.card_type.value,
+                    "version": card.version,
+                    "status": card.status.value,
+                    "generated_at": card.generated_at.isoformat(),
+                    "confidence": _confidence(payload),
+                }
+            )
+        return tuple(sorted(records, key=lambda item: str(item["card_id"])))
+
+
+def _run_sync(awaitable):
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(awaitable)
+
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        return executor.submit(asyncio.run, awaitable).result()
+
+
 def _confidence(payload: object) -> float | None:
     for name in ("confidence_score", "confidence", "overall_confidence", "conclusion_confidence"):
         value = getattr(payload, name, None)
@@ -97,4 +176,4 @@ def _confidence(payload: object) -> float | None:
     return None
 
 
-__all__ = ["CardStore", "InMemoryCardStore", "LocalCardStore"]
+__all__ = ["CardStore", "CatalystCardStore", "InMemoryCardStore", "LocalCardStore"]

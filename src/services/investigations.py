@@ -94,7 +94,11 @@ class InvestigationService:
         )
         state = replace(state, health=self.health.calculate(state))
         state = self._with_audit(state, authorization, "CREATE_INVESTIGATION", request_id or new_request_id(), 1)
-        return await self.checkpoints.save(state, expected_version=None)
+        return await self.checkpoints.save(
+            state,
+            expected_version=None,
+            audit_context={"user_role": authorization.role},
+        )
 
     async def get(self, investigation_id: UUID, *, authorization: AuthorizationContext) -> InvestigationState:
         state = await self.checkpoints.load(investigation_id)
@@ -297,7 +301,11 @@ class InvestigationService:
         versioned = candidate.with_version(previous.version + 1)
         versioned = replace(versioned, health=self.health.calculate(versioned))
         versioned = self._with_audit(versioned, authorization, action, request_id or new_request_id(), versioned.version, previous.latest_audit_hash())
-        return await self.checkpoints.save(versioned, expected_version=previous.version)
+        return await self.checkpoints.save(
+            versioned,
+            expected_version=previous.version,
+            audit_context={"user_role": authorization.role},
+        )
 
     def _with_audit(
         self,

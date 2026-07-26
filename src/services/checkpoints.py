@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol
 from uuid import UUID
 
+from src.adapters.catalyst.repositories import CatalystRepositorySet
 from src.domain.investigation_state import InvestigationState, InvestigationStateError
 from src.shared.ports import DataStorePort
 
@@ -23,7 +24,13 @@ class CheckpointConflict(CheckpointError):
 
 
 class CheckpointStore(Protocol):
-    async def save(self, state: InvestigationState, *, expected_version: int | None = None) -> InvestigationState: ...
+    async def save(
+        self,
+        state: InvestigationState,
+        *,
+        expected_version: int | None = None,
+        audit_context: Mapping[str, Any] | None = None,
+    ) -> InvestigationState: ...
 
     async def load(self, investigation_id: UUID) -> InvestigationState | None: ...
 
@@ -49,7 +56,13 @@ class LocalCheckpointStore:
     def _version_path(self, investigation_id: UUID, version: int) -> Path:
         return self.root / f"{investigation_id}.v{version}.json"
 
-    async def save(self, state: InvestigationState, *, expected_version: int | None = None) -> InvestigationState:
+    async def save(
+        self,
+        state: InvestigationState,
+        *,
+        expected_version: int | None = None,
+        audit_context: Mapping[str, Any] | None = None,
+    ) -> InvestigationState:
         async with self._lock:
             latest = await self._read_latest(state.investigation_id)
             current_version = None if latest is None else int(latest["version"])
@@ -118,10 +131,21 @@ class CatalystCheckpointStore:
 
     resource = "investigation_checkpoints"
 
-    def __init__(self, data_store: DataStorePort) -> None:
+    def __init__(
+        self,
+        data_store: DataStorePort,
+        normalized: CatalystRepositorySet | None = None,
+    ) -> None:
         self.data_store = data_store
+        self.normalized = normalized or CatalystRepositorySet.from_data_store(data_store)
 
-    async def save(self, state: InvestigationState, *, expected_version: int | None = None) -> InvestigationState:
+    async def save(
+        self,
+        state: InvestigationState,
+        *,
+        expected_version: int | None = None,
+        audit_context: Mapping[str, Any] | None = None,
+    ) -> InvestigationState:
         latest = await self.data_store.get(self.resource, str(state.investigation_id))
         current_version = None if latest is None else int(latest.get("version", 0))
         if expected_version != current_version:
@@ -143,6 +167,8 @@ class CatalystCheckpointStore:
             str(state.investigation_id),
             {"investigation_id": str(state.investigation_id), "version": state.version, "state": persisted_state.to_record()},
         )
+        role = str((audit_context or {}).get("user_role", "APPLICATION"))
+        await self.normalized.persist_investigation_state(persisted_state, user_role=role)
         return persisted_state
 
     async def load(self, investigation_id: UUID) -> InvestigationState | None:
