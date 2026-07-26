@@ -529,6 +529,16 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Review-gate evidence:** No model asset is downloaded or network-loaded implicitly; absent assets return explicit degraded results; translation supports only English/Kannada and preserves supplied proper nouns; reports require non-empty source IDs/locators, authorized investigation scope, allowed classification, human-review language, and no legal/custody/guilt claims. P10 upload type/framing/size validation remains unchanged.
 - **Known blockers:** Model smoke tests require local assets; live IndicTrans2/Whisper/Piper/Tesseract CPU/memory measurements, Catalyst Stratus report storage, and production upload/auth deployment remain environment validation items. P18 owns scenario wiring.
 
+### Review record: P18 — Ten scenario integration suite and demo wiring
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T16:05:00Z
+- **Completed:** 2026-07-26T16:15:00Z
+- **Implementation evidence:** Added `data/scenarios/` with ten deterministic synthetic fixtures matching the locked scenarios: vehicle theft, cybercrime repeat offender, UPI money trail, hotspot forecast, linked robbery hypothesis, proactive FIR match, entity resolution, drug network, investigation handover, and strategic briefing. Added `tests/integration/scenarios/test_scenarios.py`, `scripts/seed_demo.py`, `scripts/smoke_demo.py`, and `docs/demo-script.md`. The primary demo order is encoded as `3 → 1 → 6 → 5 → 4 → 10`.
+- **Validation evidence:** Focused P18 scenario suite ran **3 tests with `OK`**; full repository discovery ran **105 tests with `OK`**; seed and smoke scripts ran locally without external services; all ten scenarios have routes, engines, cards, synthetic citations, deterministic fallbacks, and replay-stable digests; Scenario 6 is system-initiated with no opening query; compileall and `git diff --check` passed.
+- **Review-gate evidence:** Fixtures contain no real records and enforce `SYNTHETIC-*` citations. Scenario assertions cover fast/deep/signals routes, relevant engine/card metadata, proactive-first behavior, deterministic replay, demo ordering, and provider-independent local fallback. The demo documentation explicitly avoids claims of measured accuracy, capacity, latency, or real investigative outcomes.
+- **Known blockers:** P19 owns performance, quality, capacity, and resilience measurement; no scenario fixture is evidence of production accuracy or throughput. P20 owns final architecture/security/demo review.
+
 ### Architecture migration record — temporary runtime strategy (pre-P09)
 
 - **Status:** `COMPLETE`
