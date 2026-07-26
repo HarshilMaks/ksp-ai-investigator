@@ -257,3 +257,17 @@ def _neighbor(edge: GraphEdge, current: str, direction: str) -> str | None:
     if direction in {"in", "both"} and edge.target_id == current:
         return edge.source_id
     return None
+
+
+# P13 bounded intelligence API. The import is lazy so this projection module
+# remains usable as an independent boundary and avoids a circular import.
+def analyze_graph(*args: object, **kwargs: object) -> object:
+    from .graph_analysis import analyze_graph as implementation
+    return implementation(*args, **kwargs)
+
+
+def __getattr__(name: str) -> object:
+    if name in {"CentralitySignal", "CommunitySignal", "GraphIntelligenceResult", "GraphPathSignal"}:
+        from . import graph_analysis
+        return getattr(graph_analysis, name)
+    raise AttributeError(name)

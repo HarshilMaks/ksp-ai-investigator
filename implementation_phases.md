@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P08`
+> Current phase: `P12`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -211,7 +211,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P09 — Persistent investigation state and checkpointing
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P04`, `P03`, `P08`
 - **Owner scope:** investigation lifecycle, case memory, evidence board, timeline, hypotheses, leads
 - **Tasks:** implement investigation CRUD/domain service; Catalyst-compatible checkpoint interface with local adapter; persist state versions; implement evidence pinning, notes, hypotheses, timeline entries, lead status, and graph view state; implement deterministic **Investigation Health** aggregation for evidence coverage, timeline completeness, network coverage, financial coverage, witness coverage, contradictions, and missing critical evidence.
@@ -223,7 +223,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P10 — Capability/resource REST and SSE APIs
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P08`, `P09`, `P06`
 - **Owner scope:** Python API/BFF adapters and stream protocol
 - **Tasks:** implement investigation run lifecycle, capability routes, resource routes, SSE event schema, cookie/bearer auth handling, multipart upload boundary, standardized errors, and request audit context; communicate with the investigation service and Runner protocol without depending on LocalRunner or HexelRunner.
@@ -235,7 +235,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P11 — Next.js investigation workspace with Feature-Sliced Design
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P09`, `P10`
 - **Owner scope:** Next.js 15 App Router + React 19 + TypeScript workspace shell and FSD slices
 - **Tasks:** create Catalyst AppSail-compatible Next.js client; implement `client/src/app`, `features`, `entities`, `widgets`, `shared`, and `styles`; add Tailwind CSS v4, shadcn/ui, Radix UI, Lucide React, Motion, TanStack Query v5, Zustand, React Hook Form, Zod, TanStack Table, Cytoscape.js, Apache ECharts, MapLibre GL, react-resizable-panels, cmdk, Sonner, React DnD, react-markdown, React PDF, and next-themes; implement seven synchronized panels; add REST/JWT/Catalyst Auth and SSE clients; add card renderer shell; implement responsive states, confidence, stale indicators, and Investigation Health.
@@ -247,7 +247,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P12 — Temporary Runner and Strands agent fleet
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P06`, `P08`, `P09`, `P10`
 - **Owner scope:** minimal LocalRunner interface and reusable Strands agents; Hexel is the future runtime owner
 - **Tasks:** define a small `Runner.run(state: InvestigationState) -> InvestigationState` interface; implement `LocalRunner` that invokes agents and passes updated state; define the future Hexel adapter boundary; define one `AgentContext` containing `state`, `auth_context`, `registry`, `llm`, and `logger`; implement Planner, Evidence, Graph Intelligence, Pattern Intelligence, Financial Intelligence, Timeline, Reasoner, and Reporter agent interfaces using Strands; keep agent business logic outside the runner; preserve existing registry, adapter, evidence, and engine boundaries.
@@ -436,7 +436,48 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Implementation evidence:** Added structured evidence contracts in `src/domain/evidence.py`; mandatory citation, numeric-consistency, permission, contradiction, uncertainty, and audit validation in `src/engines/evidence.py`; deterministic fast/deep classification in `src/orchestration/router.py`; synchronous cited execution in `src/orchestration/fast_path.py`; and unit tests for routing, release blocking, contradiction handling, and audit metadata.
 - **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **61 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; targeted P08 tests ran 8 tests with `OK`; `p08_phase_boundary_contracts: passed`; `git diff --check` passed; private-file ignore checks passed.
 - **Review-gate evidence:** Fast path allows only T01/T02/T03/T06/T13/T14 deterministic tools; natural-language intent and reasoning tools route away from fast execution; released records require citations and source claims; inconsistent totals are blocked; contradictions are surfaced and block release; authorization remains enforced by the registry; audit metadata and deterministic uncertainty are attached; no LLM, private chain-of-thought, public tool route, or unrestricted query path was added.
-- **Known blockers:** Fast path is currently an internal Python service boundary; REST/SSE exposure and persistent investigation state are intentionally deferred to P09–P10. The evidence gate validates structured tool outputs and does not claim legal sufficiency.
+- **Known blockers:** Fast path is currently an internal Python service boundary; REST/SSE exposure is intentionally deferred to P10. The evidence gate validates structured tool outputs and does not claim legal sufficiency.
+
+### Review record: P09 — Persistent investigation state and checkpointing
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T13:44:00Z
+- **Completed:** 2026-07-26T13:49:00Z
+- **Implementation evidence:** Added `src/domain/investigation_state.py` with the Created/Active/Suspended/Closed/Archived lifecycle, versioned state aggregate, evidence board, notes, hypotheses, timeline, leads, graph view, deterministic health, provenance, and hash-chained audit metadata. Added `src/services/checkpoints.py` with atomic local JSON persistence and a Catalyst Data Store-compatible adapter; added `src/services/investigations.py`, `evidence_board.py`, `hypotheses.py`, `leads.py`, and `investigation_health.py` for authorized synchronized mutations.
+- **Validation evidence:** Focused P09 suite ran **8 tests with `OK`**; full repository suite ran **69 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; serialized state round-trip and checkpoint version assertions passed in `tests/unit/services/test_investigations.py`; `git diff --check` passed; private-file ignore checks passed.
+- **Review-gate evidence:** Local checkpoints persist across fresh service instances; Catalyst-shaped storage uses the same state contract; lifecycle transitions fail closed; archived investigations are read-only; evidence/hypothesis/timeline/lead/graph mutations recalculate one shared state and health; health exposes deterministic coverage percentages, contradiction count, missing critical evidence, and metric-level source/calculation provenance; every mutation requires investigation authorization and appends auditable request/officer/version/hash metadata; stale checkpoint writes fail closed. No runner, workflow engine, agent runtime, or conversation-only memory was added.
+- **Known blockers:** Catalyst deployment API compatibility and REST/SSE exposure remain deferred to P10; health thresholds are deterministic application policy and require later product review against measured investigation data.
+
+### Review record: P10 — Capability/resource REST and SSE APIs
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T14:00:00Z
+- **Completed:** 2026-07-26T14:05:00Z
+- **Implementation evidence:** Added framework-neutral typed API contracts in `src/api/types.py`, cookie/bearer authentication in `src/api/auth.py`, SSE event serialization in `src/api/sse.py`, multipart validation in `src/api/multipart.py`, and the versioned `ApiApplication`/`RunnerProtocol` boundary in `src/api/application.py`. Added thin Catalyst delegates under `functions/api/` and documented the contract in `docs/api-reference.md`.
+- **Validation evidence:** Focused P10 API suite ran **6 tests with `OK`**; full repository suite ran **75 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; `git diff --check` passed; private-file ignore checks passed.
+- **Review-gate evidence:** `/api/v1` resource and capability routes are versioned; P08 typed fast-path queries return synchronously; complex runs return REST run IDs and SSE streams; SSE events cover plan/evidence/error/done and use cookie-compatible auth; bearer auth is supported for fetch-based SSE clients; public T01–T23 routes are rejected; multipart framing, filename, type, and size limits are enforced; standardized errors include request IDs and CORS headers; API code imports only the Runner protocol and never LocalRunner or HexelRunner.
+- **Known blockers:** FastAPI/AppSail mounting, Catalyst API Gateway/Auth deployment, live CORS validation, and production SSE transport remain deployment validation items. No live service, capacity, latency, or performance claim is made.
+
+### Review record: P11 — Next.js investigation workspace with Feature-Sliced Design
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T14:10:00Z
+- **Completed:** 2026-07-26T14:20:00Z
+- **Implementation evidence:** Added the pinned `client/package.json` with Next.js 15.5.22, React 19.1.0, TypeScript 5.8.3, Tailwind CSS v4, Radix/shadcn-compatible primitives, Lucide, Motion, TanStack Query/Table, Zustand, React Hook Form/Zod, Cytoscape, ECharts, MapLibre, resizable panels, cmdk, Sonner, React DnD, react-markdown, React PDF, and next-themes. Added standalone AppSail-compatible `next.config.ts`, TypeScript/PostCSS/ESLint configuration, App Router layout/home/investigation routes, FSD `features`, `entities`, `widgets`, `shared`, and `styles` boundaries, typed REST and cookie-compatible SSE clients, and the investigation workspace shell.
+- **Workspace evidence:** The shell renders one shared `InvestigationState` into Conversation, Evidence Board, Timeline, Network Graph, Leads, Hypothesis Panel, and Intelligence Cards; it displays Investigation Health, confidence/freshness fields, proactive intelligence before query entry, responsive layouts, and synthetic empty states only. The dynamic investigation route loads through the P10 REST client and falls back safely without changing backend contracts.
+- **Validation evidence:** From `client/`, `npm run typecheck` passed; `npm run lint` passed with zero warnings after the ESLint 9 flat-config correction; `npm run build` passed on Next.js 15.5.22, compiling successfully and generating `/`, `/_not-found`, and `/investigations/[investigationId]`. The initial Next.js 15.5.7 installer warning was resolved by pinning the patched 15.5.22 release. Backend regression remains green at **75 tests with `OK`**, and Python compileall remains passed.
+- **Review-gate evidence:** The implementation is investigation-first rather than chat-first; proactive alerts precede the question composer; no direct database/provider imports or real records are bundled; shared API/state types are below widgets/features under the FSD tree; REST/SSE/auth remain the only backend communication boundary; standalone output preserves Catalyst AppSail hosting without altering Functions, Runner, engines, Data Store, or Neo4j contracts.
+- **Known blockers:** No browser automation dependency is installed, so visual/browser behavior is validated by the production build and responsive CSS paths rather than a headless browser run. Live Catalyst Auth/JWT, API Gateway, SSE, and AppSail deployment remain environment validation items. Full interaction mutation coverage and card-specific visualizations remain planned follow-on work in later phases.
+
+### Review record: P12 — Temporary Runner and Strands agent fleet
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T14:30:00Z
+- **Completed:** 2026-07-26T14:38:00Z
+- **Implementation evidence:** Added `src/orchestration/runner.py` with the minimal async `Runner` protocol; `src/orchestration/state.py` with the immutable dependency-injected `AgentContext`; `src/orchestration/local_runner.py` with sequential state passing; and `src/orchestration/hexel_runner.py` with a future adapter protocol and explicit unavailable-runtime error. Added `src/agents/contracts.py` and package exports for Planner, Evidence, Graph Intelligence, Pattern Intelligence, Financial Intelligence, Timeline, Reasoner, and Reporter agent interfaces. No Strands/Hexel SDK dependency was introduced while the runtime is unavailable.
+- **Validation evidence:** Focused P12 suite ran **7 tests with `OK`**. Full repository discovery ran **82 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; `git diff --check` passed; an import audit found no direct database/provider imports in `src/orchestration` or `src/agents`.
+- **Review-gate evidence:** `LocalRunner` only validates input, constructs `AgentContext`, invokes the declared agent sequence, passes each returned `InvestigationState` forward, and returns the final state. It has no persistence, scheduling, retries, streaming, distribution, cancellation, or workflow graph. Agents only accept context and return shared state; they do not invoke other agents or access Catalyst, Neo4j, or provider clients. `HexelRunner` satisfies the same structural protocol, delegates only to an injected future adapter, and never silently falls back to LocalRunner. Existing P08 fast-path tests remain green and the T01–T23 registry is unchanged.
+- **Known blockers:** Agent business capabilities, deterministic intelligence engines, and real Strands model calls are intentionally deferred to P13 and later; Hexel runtime integration remains future deployment work. No local orchestration platform, gateway, skill system, policy engine, MCP server, or durable execution layer was added.
 
 ### Architecture migration record — temporary runtime strategy (pre-P09)
 

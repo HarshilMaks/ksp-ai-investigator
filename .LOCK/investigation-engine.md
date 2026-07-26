@@ -35,25 +35,28 @@ For local development, P09 provides a local checkpoint adapter with the same app
 ### Session Continuity
 
 ```python
-async def resume_investigation(officer_id: str, investigation_id: str):
-    """Officer returns → restore full investigation context."""
-    config = {"configurable": {"thread_id": f"{officer_id}:{investigation_id}"}}
-    
-    # Restore state from last checkpoint
-    state = await app.aget_state(config)
-    
-    # Generate context briefing
-    briefing = f"""
-    Welcome back, Officer. Here's your investigation status:
-    - Active Cases: {len(state.values['active_case_ids'])} FIRs
-    - Pinned Entities: {len(state.values['pinned_entities'])} on evidence board
-    - Active Hypotheses: {len(state.values['hypotheses'])}
-    - Open Leads: {len([l for l in state.values['leads'] if l.status == 'open'])}
-    - Last Activity: {state.values['last_activity'].strftime('%d %b %Y, %I:%M %p')}
-    - Last Query: "{state.values['last_query']}"
-    """
+async def resume_investigation(service: InvestigationService, officer_id: str, investigation_id: UUID):
+    """The P09 service restores the latest authorized application checkpoint."""
+    authorization = AuthorizationContext(
+        officer_id=officer_id,
+        role="IO",
+        scopes=frozenset({"investigation:read"}),
+        investigation_id=str(investigation_id),
+    )
+    state = await service.get(investigation_id, authorization=authorization)
+    briefing = {
+        "status": state.status.value,
+        "version": state.version,
+        "evidence_count": len(state.evidence),
+        "hypothesis_count": len(state.hypotheses),
+        "open_lead_count": sum(lead.status in {"OPEN", "ASSIGNED", "IN_PROGRESS"} for lead in state.leads),
+        "last_activity": state.updated_at.isoformat(),
+        "health": state.health.as_percentages() if state.health else {},
+    }
     return briefing, state
 ```
+
+The service, not the Runner or an agent, owns checkpoint restoration and authorization.
 
 ---
 

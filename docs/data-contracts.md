@@ -34,3 +34,11 @@ SyntheticFixture
 ```
 
 Each generated relationship references at least one source FIR as evidence. P04 only constructs logical records; ingestion, persistence, graph projection, embeddings, and intelligence engines are later phases.
+
+## P09 persistent investigation state
+
+`src/domain/investigation_state.py` is the application workspace aggregate passed between the Investigation Service and future Runner boundary. It deliberately complements rather than replaces the logical `investigations` table contract: the P09 aggregate carries versioned evidence, notes, hypotheses, timeline events, leads, graph view state, health provenance, and audit metadata.
+
+`src/services/checkpoints.py` defines the Catalyst-compatible checkpoint port. `LocalCheckpointStore` writes atomic versioned JSON plus a latest pointer so a new local service instance can resume state. `CatalystCheckpointStore` uses the existing `DataStorePort` with the same serialized contract. Checkpoint writes use optimistic version checks and reject stale or invalid versions.
+
+Every P09 mutation goes through `InvestigationService`, which authorizes the officer, applies one synchronized state update, recalculates deterministic Investigation Health, increments the state version, and appends request/officer/version/hash audit metadata. The local P09 health policy reports evidence, timeline, network, financial, and witness coverage as bounded percentages, contradiction count, missing critical evidence, and metric-level source/calculation provenance. Thresholds are application policy and remain subject to later measured/product review.
