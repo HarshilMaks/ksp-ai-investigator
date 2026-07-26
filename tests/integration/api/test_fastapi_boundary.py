@@ -15,7 +15,14 @@ from src.services.checkpoints import LocalCheckpointStore
 from src.services.investigations import InvestigationService
 
 
-async def invoke(app: FastAPI, method: str, path: str, body: dict | None = None) -> tuple[int, dict[str, str], bytes]:
+async def invoke(
+    app: FastAPI,
+    method: str,
+    path: str,
+    body: dict | None = None,
+    *,
+    authenticated: bool = True,
+) -> tuple[int, dict[str, str], bytes]:
     raw = b"" if body is None else json.dumps(body).encode()
     messages = [{"type": "http.request", "body": raw, "more_body": False}]
     response: dict[str, object] = {"body": b"", "headers": {}}
@@ -30,7 +37,10 @@ async def invoke(app: FastAPI, method: str, path: str, body: dict | None = None)
         elif message["type"] == "http.response.body":
             response["body"] += message.get("body", b"")  # type: ignore[operator]
 
-    await app({"type": "http", "method": method, "path": path, "query_string": b"", "headers": [(b"authorization", b"Bearer token"), (b"content-type", b"application/json")], "scheme": "http", "server": ("test", 80), "client": ("test", 1), "http_version": "1.1"}, receive, send)
+    headers = [(b"content-type", b"application/json")]
+    if authenticated:
+        headers.insert(0, (b"authorization", b"Bearer token"))
+    await app({"type": "http", "method": method, "path": path, "query_string": b"", "headers": headers, "scheme": "http", "server": ("test", 80), "client": ("test", 1), "http_version": "1.1"}, receive, send)
     return int(response["status"]), response["headers"], response["body"]  # type: ignore[return-value]
 
 
@@ -46,11 +56,25 @@ class FastApiBoundaryTests(unittest.TestCase):
             self.assertEqual("application/json; charset=utf-8", headers["content-type"])
             self.assertIn("investigation_id", json.loads(body)["data"])
 
+    def test_fastapi_health_endpoint_is_unauthenticated_and_live(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            app = create_fastapi_app(
+                ApiApplication(
+                    InvestigationService(LocalCheckpointStore(Path(directory))),
+                    ApiAuthenticator(StaticAuthVerifier({})),
+                )
+            )
+            status, headers, body = asyncio.run(invoke(app, "GET", "/health", authenticated=False))
+            self.assertEqual(200, status)
+            self.assertEqual("application/json", headers["content-type"])
+            self.assertEqual({"status": "ok", "service": "ksp-investigateai"}, json.loads(body))
+
     def test_fastapi_exposes_openapi_and_preserves_sse_transport(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             verifier = StaticAuthVerifier({"token": {"officer_id": str(uuid4()), "role": "IO", "scopes": ["investigation:read", "investigation:write"]}})
             app = create_fastapi_app(ApiApplication(InvestigationService(LocalCheckpointStore(Path(directory))), ApiAuthenticator(verifier)))
             paths = app.openapi()["paths"]
+            self.assertIn("/health", paths)
             self.assertIn("/api/v1/investigations", paths)
             self.assertIn("/api/v1/investigations/{investigation_id}", paths)
             self.assertIn("/api/v1/runs/{run_id}/events", paths)

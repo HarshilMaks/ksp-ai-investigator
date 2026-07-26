@@ -19,6 +19,13 @@ def create_fastapi_app(application: ApiApplication, *, title: str = "KSP Investi
     """
 
     app = FastAPI(title=title, version="1.0.0", docs_url="/docs", redoc_url="/redoc")
+
+    @app.get("/health", tags=["system"], name="health", operation_id="health")
+    async def health() -> dict[str, str]:
+        """Return process liveness for browser, load balancer, and deployment checks."""
+
+        return {"status": "ok", "service": "ksp-investigateai"}
+
     router = APIRouter(prefix=ApiApplication.version_prefix)
 
     async def transport(request: Request) -> Response:

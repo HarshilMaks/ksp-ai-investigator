@@ -22,6 +22,28 @@ The authenticated claims are converted to the existing `AuthorizationContext` wi
 ## Resource routes
 
 ```http
+
+## Health check
+
+The web facade exposes an unauthenticated liveness endpoint:
+
+```http
+GET /health
+```
+
+Example response:
+
+```json
+{"status":"ok","service":"ksp-investigateai"}
+```
+
+For local verification:
+
+```bash
+curl -i http://127.0.0.1:8000/health
+```
+
+This is a process liveness check; it does not claim that Catalyst, Neo4j, model providers, or other external services are available. Those boundaries remain disabled or deployment-configured independently.
 POST /api/v1/investigations
 GET  /api/v1/investigations/{investigation_id}
 POST /api/v1/investigations/{investigation_id}/status
