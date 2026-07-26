@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # KSP InvestigateAI — Overall System Architecture
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -53,7 +54,7 @@
 │                         ORCHESTRATION LAYER                                       │
 │                                                                                  │
 │  ┌─────────────────────────────────────────────────────────────────────────┐    │
-│  │  LangGraph Investigation Orchestrator (State Machine; not an LLM agent)                     │    │
+│  │  InvestigationService → Runner → Strands agents (fast path remains outside Runner)                     │    │
 │  │                                                                          │    │
 │  │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────────┐    │    │
 │  │  │ Router  │──▶│ Planner? │──▶│ Engines  │──▶│ Evidence Gate    │    │    │
@@ -186,7 +187,7 @@ The engine registry includes SQL Retrieval, Search/Ranking, Graph Intelligence, 
 - Memory: 128MB–512MB per function (tier-dependent)
 - Timeout: 30s (API), 300s (intelligence jobs), 60s (signal handlers)
 - Concurrency: Auto-scaled by Catalyst platform
-- Dependencies: LangGraph, LiteLLM, neo4j-driver, onnxruntime, numpy
+- Dependencies: Strands agents, LiteLLM, neo4j-driver, onnxruntime, numpy
 
 ### AppSail (Neo4j Container)
 
@@ -269,7 +270,7 @@ The frontend source tree is rooted at `client/src/` and follows FSD: `app/`, `fe
 
 ```
 ┌──────┐    ┌───────────┐    ┌──────┐    ┌──────────┐    ┌──────────┐    ┌───────┐
-│ User │───▶│API Gateway│───▶│ Auth │───▶│ API Fn   │───▶│LangGraph │───▶│ Tools │
+│ User │───▶│API Gateway│───▶│ Auth │───▶│ API Fn   │───▶│Runner/Strands │───▶│ Tools │
 │      │    │           │    │Check │    │(handler) │    │(orchestr)│    │(23)   │
 └──────┘    └───────────┘    └──────┘    └──────────┘    └──────────┘    └───┬───┘
                                                                               │
@@ -277,7 +278,7 @@ The frontend source tree is rooted at `client/src/` and follows FSD: `app/`, `fe
     │
     ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  Tool Execution (parallel via asyncio.gather)                                 │
+│  Tool Execution through the typed registry (parallelism is platform-owned or explicitly bounded by business services)                                 │
 │                                                                              │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │
 │  │ Graph Query │  │Vector Search│  │ ZCQL Query  │  │ ONNX Inference  │   │
@@ -302,9 +303,9 @@ The frontend source tree is rooted at `client/src/` and follows FSD: `app/`, `fe
 1. User submits query via chat interface
 2. API Gateway routes to appropriate Function endpoint
 3. Catalyst Auth validates JWT, extracts user role + permissions
-4. API Function initializes LangGraph with user context + conversation history
-5. LangGraph orchestrator analyzes intent and routes to reasoning stages and deterministic engines
-6. The orchestrator invokes typed tools backed by deterministic engines (parallel where permitted; measure actual concurrency)
+4. API Function creates InvestigationState and calls the InvestigationService
+5. InvestigationService routes intent; the Runner only invokes Strands agents with AgentContext
+6. Agents invoke authorized typed tools through the registry backed by deterministic engines (parallel where permitted; measure actual concurrency)
 7. Tools execute queries across Neo4j, Data Store, Vector index
 8. Results aggregated into structured context window
 9. LLM synthesizes response with citations
@@ -734,7 +735,7 @@ Storage Budget (Free Tier):
 │  │  Custom Application Monitoring                     │          │
 │  │                                                    │          │
 │  │  ┌─────────────────────────────────────────────┐  │          │
-│  │  │  LangGraph Trace Logger                      │  │          │
+│  │  │  Application audit metadata                      │  │          │
 │  │  │                                              │  │          │
 │  │  │  • Orchestrator routing decisions                   │  │          │
 │  │  │  • Tool invocations + latency               │  │          │
@@ -846,8 +847,8 @@ ksp-investigate-ai/
 │   │   ├── upload_api.py            # Multipart voice/audio and document uploads
 │   │   └── alert_api.py             # Alert resources and SSE alert lifecycle
 │   │
-│   ├── orchestration/                # LangGraph state machine + reasoning stages (internal)
-│   │   ├── orchestrator.py          # LangGraph state machine; routing/checkpoints/SSE
+│   ├── orchestration/                # InvestigationService and Runner boundary (internal)
+│   │   ├── runner.py                # Runner protocol; LocalRunner and HexelRunner are planned in P12
 │   │   ├── planner_stage.py         # Optional ambiguity/complexity planning
 │   │   ├── reasoner_stage.py        # Grounded synthesis and hypothesis evaluation
 │   │   └── reporter_stage.py        # Evidence-gated communication and report wording
@@ -959,7 +960,7 @@ ksp-investigate-ai/
 ├── .LOCK/                           # Architecture Documentation
 │   ├── architecture.md              #   THIS FILE — System architecture
 │   ├── data-model.md                #   Graph & relational schema
-│   ├── orchestration-design.md       #   LangGraph orchestrator and reasoning stages
+│   ├── orchestration-architecture.md #   Runner protocol and Strands agent boundary
 │   ├── api-spec.md                  #   REST API specification
 │   └── deployment.md                #   Deployment & operations guide
 │
@@ -1028,7 +1029,7 @@ ksp-investigate-ai/
 
 The external boundary uses Catalyst API Gateway for authentication, RBAC, throttling, and routing. REST APIs are capability-oriented for investigation actions and resource-oriented for workspace state. Complex investigations create a run with REST and stream progress through SSE; simple lookups may return synchronously. Voice and document inputs use multipart REST.
 
-Catalyst API Gateway exposes capability-oriented and resource REST routes; the LangGraph engine and its internal typed Python Tool Registry are not public endpoints. The orchestrator and permitted reasoning stages call typed tools; tools enforce authorization context, schemas, query limits, citations, and audit events. WebSockets are deferred until collaborative editing or presence is required. gRPC is reserved for a future split into independent internal services, and MCP is an optional interoperability adapter rather than a runtime dependency.
+Catalyst API Gateway exposes capability-oriented and resource REST routes; the InvestigationService/Runner boundary and its internal typed Python Tool Registry are not public endpoints. Agents and permitted reasoning stages call typed tools; tools enforce authorization context, schemas, query limits, citations, and audit events. WebSockets are deferred until collaborative editing or presence is required. gRPC is reserved for a future split into independent internal services, and MCP is an optional interoperability adapter rather than a runtime dependency.
 
 | Aspect | Detail |
 |--------|--------|
@@ -1344,7 +1345,7 @@ def get_intelligence_card(card_type: str, entity_id: str) -> dict:
 KSP InvestigateAI is a fully serverless, AI-powered criminal investigation platform built on Zoho Catalyst. The architecture prioritizes:
 
 - **Speed**: Pre-computed intelligence + streaming responses for streaming UX; benchmark target pending measurement
-- **Intelligence**: LangGraph orchestrator with 23 typed tools backed by deterministic engines and graph intelligence
+- **Intelligence**: Runner protocol with Strands agents with 23 typed tools backed by deterministic engines and graph intelligence
 - **Security**: Role-based access, immutable audit trails, and encryption throughout
 - **Cost**: Uses Catalyst free tier where available plus the $250 trial credits; actual cost depends on measured usage
 - **Scalability**: From hackathon demo (500 FIRs) to district deployment (50K FIRs) without architecture changes

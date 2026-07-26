@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # AI System Architecture
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -143,7 +144,7 @@ The system deliberately separates external application communication from intern
 
 ### Internal AI boundary
 
-- LangGraph is the orchestrator and calls a typed Python Tool Registry directly.
+- The InvestigationService routes requests; Strands agents use the typed Python Tool Registry through the Runner context.
 - Tools, not agents, access the Data Store, pgvector, Neo4j, ONNX models, Stratus, and intelligence cards.
 - Tool inputs and outputs are Pydantic models with authorization context, query limits, citations, and audit metadata.
 - gRPC is reserved for a future split into independent internal services; it is not part of the initial Catalyst deployment.
@@ -169,7 +170,7 @@ Catalyst API Gateway
   ↓
 Capability API / BFF
   ↓
-LangGraph Investigation Engine
+Investigation Service with Runner protocol
   ↓ direct typed calls
 Internal Tool Registry
   ↓
@@ -182,7 +183,7 @@ SSE event stream back to the workspace
 
 ## Execution paths and evidence gate
 
-The LangGraph Investigation Orchestrator is a state machine, not an LLM agent. It selects one of two paths:
+The InvestigationService selects one of two paths. The P08 fast path bypasses the Runner; the Runner executes only agent-based workflows:
 
 ```text
 Exact/structured query
@@ -672,7 +673,7 @@ Implementation:
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌─────────────┐    ┌────────────────┐    ┌───────────────────────┐  │
-│  │   Frontend   │───►│ Catalyst API   │───►│ LangGraph + Tool      │  │
+│  │   Frontend   │───►│ Catalyst API   │───►│ Runner/Strands + Tool      │  │
 │  │  (Next.js 15/React 19)│◄──│ Gateway + SSE  │◄──│ Registry + LiteLLM    │  │
 │  └─────────────┘    └──────────────┘    └───────────┬───────────┘  │
 │                                                      │              │

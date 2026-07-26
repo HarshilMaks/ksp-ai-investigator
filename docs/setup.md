@@ -4,7 +4,7 @@
 
 The deployment target is Python 3.11. Local development may use another compatible Python version, but deployment-specific behavior must be validated on Python 3.11 before release. The frontend target is Next.js 15 App Router + React 19 + TypeScript on Catalyst AppSail, using REST APIs and SSE for AI/progress/alert streams with JWT/Catalyst Authentication.
 
-## Phase 1 validation
+## Baseline validation
 
 No third-party runtime dependency is required for the repository baseline. Use `uv` as the implementation and validation runner:
 

@@ -22,7 +22,9 @@ The implementation follows the locked domain architecture and the temporary runt
 
 ## Current implementation state
 
-Phase `P01` establishes the repository contract and investigator journey. Runtime services and dependencies are intentionally not enabled yet. See [`implementation_phases.md`](implementation_phases.md) for the sequential state machine and review gates.
+Phases `P01`–`P08` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search engines, and the P08 fast path with its mandatory evidence gate. The fast path is an internal deterministic service and is intentionally independent of the future Runner.
+
+`P09` — persistent investigation state and checkpointing — is the next phase. REST/SSE APIs, the Next.js workspace, the temporary `LocalRunner`, and Strands agents remain planned later phases. The finalized runtime boundary is documented in [`docs/orchestration-architecture.md`](docs/orchestration-architecture.md): `InvestigationService → Runner protocol → LocalRunner/HexelRunner`, with the fast path outside the Runner.
 
 ## Safety and scope
 

@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # InvestigateAI — Product Requirements Document
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -34,7 +35,7 @@ The four-day MVP prioritizes one end-to-end vertical slice. Deterministic engine
 | Voice Input | Faster-Whisper base CPU with Groq Whisper fallback | Kannada + English voice queries |
 | Context Memory | Session state + vector recall | Multi-turn investigation context (last 20 turns) |
 | PDF Export | SmartBrowz / WeasyPrint | One-click Investigation Package generation |
-| Query Understanding | LangGraph fast/deep router + optional Planner | Classify intent, then route to deterministic engine |
+| Query Understanding | InvestigationService fast/deep router + optional Planner | Classify intent, then route to deterministic engine |
 
 **User Flow:**
 ```
@@ -364,7 +365,7 @@ The initial four-day build implements one investigation path deeply: structured 
 | Database | Catalyst Data Store + pgvector HNSW; Neo4j 5 Community on AppSail |
 | LLM | LiteLLM/OpenAI-compatible routing: Groq Llama 3.3 70B, Gemini 2.5 Flash, Mistral Small, OpenRouter Llama 3.1 8B free emergency fallback |
 | Frontend | React + TypeScript (SPA) |
-| Backend | Python Catalyst Functions with LangGraph and typed Tool Registry |
+| Backend | Python investigation service on Catalyst AppSail/Functions with Runner protocol, Strands agents, and typed Tool Registry |
 | Vector Store | pgvector HNSW in Catalyst Data Store; BGE-M3 1024-dim ONNX CPU embeddings |
 | Graph | Neo4j 5 Community on Catalyst AppSail |
 

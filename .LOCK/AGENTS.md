@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # KSP InvestigateAI — Orchestrator and Deterministic Engine Architecture
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -7,7 +8,7 @@
 > **Classification**: CORE DIFFERENTIATOR — evidence-grounded orchestration over deterministic intelligence
 > **Version**: 1.0.0  
 > **Last Updated**: 2026-07-23  
-> **Entry Point**: `src/orchestration/orchestrator.py`
+> **Entry Point**: `src/orchestration/runner.py` (P12 planned boundary)
 
 ---
 
@@ -18,13 +19,13 @@
 ✅ This:       Question → route fast/deep → deterministic engines → evidence gate → cited response/package
 ```
 
-KSP InvestigateAI deploys one **LangGraph Investigation Orchestrator** with three LLM reasoning stages and deterministic engines. The state machine provides persistent memory, parallel execution, authorization, retries, and conditional routing; the number of parallel engine calls is a design target pending measurement.
+KSP InvestigateAI deploys an Investigation Service with a Runner protocol, reusable Strands agents, and deterministic engines. The service owns application routing and state coordination; P09 owns persistence/checkpoints; the temporary LocalRunner only invokes agents, passes InvestigationState, and returns the final state. Hexel owns platform-level scheduling, parallel execution, retries, and durable task lifecycle.
 
 ---
 
-## Orchestrator and Reasoning Stages
+## Investigation Service, Runner, and Reasoning Stages
 
-InvestigateAI has one **LangGraph Investigation Orchestrator**. It is a state machine—not an LLM agent—and owns routing, state, checkpointing, retries, parallel fan-out/fan-in, authorization context, and SSE progress. LLM use is limited to three reasoning stages:
+The Investigation Service routes fast-path requests directly and sends complex investigation workflows through the Runner protocol. The temporary LocalRunner is not a state machine or workflow engine; it only passes InvestigationState through reusable Strands agents. LLM use is limited to Planner, Reasoner, and Reporter stages:
 
 | Stage | Invocation | Responsibility | Output boundary |
 |---|---|---|---|
@@ -75,13 +76,12 @@ The Evidence/Explainability Engine must validate every response before release: 
 
 LiteLLM selects Groq Llama 3.3 70B, Gemini 2.5 Flash, Mistral Small, or OpenRouter Llama 3.1 8B emergency fallback by task, complexity, quota, and fallback state. Business logic never hardcodes a provider. Resource controls are design targets pending measurement: avoid LLM calls for exact filters/counts/joins/paths/scores, precompute cards, bound graph depth and candidate sets, batch embeddings/writes, cache safe results, enforce token budgets and circuit breakers, and measure p50/p95/p99 latency, quality, citation coverage, unsupported-claim rate, and cost per investigation.
 
-### Orchestrator detail
+### Runner detail
 
 ```python
-class InvestigationOrchestrator:
-    """LangGraph StateGraph; deterministic control plane, not an LLM agent."""
-    # route, checkpoint, authorize, fan out engines, reconcile, retry, stream SSE
-    ...
+class Runner(Protocol):
+    """Small migration boundary; platform orchestration is not implemented here."""
+    async def run(self, state: InvestigationState) -> InvestigationState: ...
 ```
 
 #### Planner Agent
@@ -391,9 +391,9 @@ class AlertCreateParams(BaseModel):
 
 ---
 
-## 3. LangGraph Investigation Orchestrator
+## 3. Investigation Service with Runner protocol
 
-The Investigation Orchestrator is a LangGraph `StateGraph`, not an LLM agent. It routes fast/deep work, invokes typed registry tools, fans out independent deterministic engines, reconciles evidence, checkpoints case memory, retries bounded failures, and streams SSE progress.
+The Investigation Orchestrator is a Runner protocol with Strands agents, not an LLM agent. It routes fast/deep work, invokes typed registry tools, fans out independent deterministic engines, reconciles evidence, checkpoints case memory, retries bounded failures, and streams SSE progress.
 
 ### InvestigationState TypedDict
 
@@ -420,32 +420,24 @@ class InvestigationState(TypedDict):
     checkpoint_id: str | None
 ```
 
-### Graph nodes and routing
+### Runner and agent sequencing
 
 ```python
-from langgraph.graph import StateGraph, END
+class Runner(Protocol):
+    async def run(self, state: InvestigationState) -> InvestigationState: ...
 
-builder = StateGraph(InvestigationState)
-builder.add_node("route", route_request)                 # deterministic classification
-builder.add_node("planner", optional_planner_stage)      # only ambiguous/complex input
-builder.add_node("engines", invoke_typed_engines)        # SQL/search/graph/etc.
-builder.add_node("evidence_gate", validate_evidence)     # mandatory release gate
-builder.add_node("reasoner", grounded_reasoning_stage)  # deep path only
-builder.add_node("lead_ranking", rank_leads)             # deterministic engine
-builder.add_node("reporter", reporter_stage)             # wording/package only
+@dataclass(frozen=True)
+class AgentContext:
+    state: InvestigationState
+    auth_context: dict[str, object]
+    registry: object
+    llm: object
+    logger: object
 
-builder.set_entry_point("route")
-builder.add_conditional_edges("route", choose_fast_or_deep,
-                              {"fast": "engines", "deep": "planner"})
-builder.add_edge("planner", "engines")
-builder.add_edge("engines", "evidence_gate")
-builder.add_conditional_edges("evidence_gate", needs_reasoner,
-                              {"reason": "reasoner", "rank": "lead_ranking"})
-builder.add_edge("reasoner", "lead_ranking")
-builder.add_conditional_edges("lead_ranking", needs_reporter,
-                              {"report": "reporter", "done": END})
-builder.add_edge("reporter", END)
+async def run_agent(context: AgentContext) -> InvestigationState: ...
 ```
+
+The temporary LocalRunner invokes agents in the agreed business sequence and passes the updated state. It does not build a graph, schedule work, retry tasks, persist checkpoints, or stream events. The P08 fast path remains outside the Runner.
 
 Independent engine calls run in parallel only when the plan and resource budget permit it; actual concurrency and latency are measured acceptance criteria. Exact filters, counts, joins, paths, dates, and deterministic scores use the fast path without an LLM.
 
@@ -459,7 +451,7 @@ class CatalystCheckpointAdapter:
     async def get(self, thread_id: str) -> dict | None: ...
 
 checkpointer = CatalystCheckpointAdapter()
-compiled_graph = builder.compile(checkpointer=checkpointer)
+# P09 persists state through the investigation service; the Runner does not own persistence.
 ```
 
 ## 4. Engine-to-Tool Mapping
@@ -491,7 +483,7 @@ Authorization is applied before each tool call. The Evidence/Explainability Engi
 This is an illustrative trace; timings, counts, scores, and quality remain pending benchmark validation.
 
 ```text
-Orchestrator: classify as complex relational query; create checkpoint
+InvestigationService: classify as complex relational query; create application checkpoint
 Planner:      produce validated plan referencing T01/T02/T03/T08/T11/T13/T14/T15/T20
 Parallel engines:
   SQL Retrieval       → jurisdiction/date/category-filtered FIR records
@@ -529,7 +521,7 @@ The officer sees an evidence board, network graph, timeline, financial trail, ra
 └─────────────────────────────────────────────────────┘
 ```
 
-### What We Build: Orchestrator plus deterministic engines
+### What We Build: Investigation Service, Runner, and deterministic engines
 
 ```text
 Officer query
@@ -554,7 +546,7 @@ The diagram shows control flow, not a promise of a fixed number of calls or a co
 
 | Dimension | Other Teams | KSP InvestigateAI |
 |-----------|-------------|-------------------|
-| **Architecture** | Single LLM chain | LangGraph orchestrator + Planner/Reasoning/Reporter stages + deterministic engines |
+| **Architecture** | Single LLM chain | Runner protocol with Strands agents + Planner/Reasoning/Reporter stages + deterministic engines |
 | **Data Access** | Maybe RAG (1 method) | 4-way hybrid retrieval + graph |
 | **Tools** | 0-3 generic | 23 typed and engine-backed |
 | **Parallelism** | Sequential only | Parallel deterministic-engine fan-out where permitted; benchmark pending |
@@ -600,30 +592,14 @@ Why typed tools backed by deterministic engines matter:
 
 ---
 
-## Quick Start — Running the Investigation Orchestrator
+## Runner contract — implemented in P12
 
 ```python
-from src.orchestration.orchestrator import InvestigateAI
-from src.orchestration.config import OrchestratorConfig
+class Runner(Protocol):
+    async def run(self, state: InvestigationState) -> InvestigationState: ...
 
-# Initialize the orchestrator
-ai = InvestigateAI(config=OrchestratorConfig.from_env())
-await ai.initialize()  # Connects to all backends
-
-# Run an investigation
-result = await ai.investigate(
-    query="Find links between recent UPI fraud cases in Whitefield",
-    officer_id="KSP_IO_4521",
-    session_id="inv_2026_07_001"
-)
-
-# Access results
-print(result.summary)           # Natural language summary
-print(result.leads)             # Ranked investigative leads
-print(result.confidence)        # 0.78
-print(result.report_url)        # /reports/inv_2026_07_001.pdf
-print(result.timeline)          # Chronological events
-print(result.network_graph)     # Vis.js compatible graph data
+# The application service constructs state, chooses the fast path or Runner,
+# and owns persistence. LocalRunner and Strands agents are planned in P12.
 ```
 
 ---
@@ -631,6 +607,6 @@ print(result.network_graph)     # Vis.js compatible graph data
 *This document defines the core AI architecture. For implementation details, see:*
 - `src/orchestration/` — Orchestration and reasoning-stage implementations
 - `src/registry/` — Tool registry and implementations
-- `src/graph/` — LangGraph state machine definition
+- `src/orchestration/` — Runner protocol and runtime boundary
 - `.LOCK/DATA_ARCHITECTURE.md` — Data layer powering the tools
 - `.LOCK/MASTER_PLAN.md` — Overall system design

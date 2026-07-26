@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # KSP INVESTIGATEAI — CRIME INTELLIGENCE OPERATING SYSTEM
 
 > 🔒 LOCKED — All decisions final. Selected implementation baseline. Performance, capacity, cost, and quality figures are targets or estimates pending benchmark/validation.
@@ -171,9 +172,10 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 ---
 
-## 12. ORCHESTRATION: LangGraph Orchestrator + Reasoning Agents + Deterministic Engines
+## 12. ORCHESTRATION: Investigation Service + Runner + Strands Agents + Deterministic Engines
 
-- **Investigation Orchestrator**: LangGraph state machine, not an LLM agent. Manages routing, state, parallel execution, retries, checkpoints, and SSE progress.
+- **InvestigationService**: owns application routing, InvestigationState, persistence integration, and API coordination. The P08 fast path bypasses the Runner.
+- **Runner**: a small protocol with temporary LocalRunner and future HexelRunner implementations. LocalRunner only invokes Strands agents, passes InvestigationState, and returns the final state.
 - **Planner Agent**: LLM-powered and invoked only for ambiguous or complex queries. Converts natural language into a validated execution plan; it never emits unrestricted SQL or Cypher.
 - **Reasoning Agent**: LLM-powered grounded synthesis over structured engine outputs, supporting/contradicting evidence, missing evidence, and hypotheses.
 - **Reporter Agent**: LLM-powered communication layer for investigator summaries, timelines, lead explanations, bilingual responses, and report wording.
@@ -211,7 +213,7 @@ All use OpenAI SDK format. LiteLLM router for auto-failover.
 
 ### Internal AI communication
 
-- The LangGraph Investigation Engine communicates with an **internal typed Python Tool Registry** through direct calls in the same runtime for low latency and strong schemas.
+- The InvestigationService and Strands agents communicate with an **internal typed Python Tool Registry** through direct calls in the same runtime for low latency and strong schemas.
 - Tools invoke the Data Store, pgvector, Neo4j Bolt, ONNX models, Stratus, and intelligence cards. Agents do not access databases directly.
 - Catalyst Signals carry backend data-change events; Cron and Circuits run scheduled and multi-step workflows.
 - **gRPC is reserved for a future split into independent internal services** and is not used in the initial Catalyst deployment.
@@ -226,7 +228,7 @@ Catalyst API Gateway (Auth + RBAC + Rate Limit)
     │
     ▼
 Capability API / BFF (Catalyst Functions or FastAPI on AppSail)
-    ├─► LangGraph Investigation Engine
+    ├─► InvestigationService → Runner → Strands agents
     │       ├─► Planner + typed internal Tool Registry
     │       ├─► Groq/Gemini/Mistral (OpenAI SDK, LiteLLM router)
     │       ├─► Catalyst Data Store (SQL + pgvector)
@@ -303,7 +305,7 @@ The initial target is 50K FIRs, 200K entities/vectors, and 500K relationships, s
 | Translation | IndicTrans2 200M ONNX | $0 |
 | OCR | Tesseract 5.x | $0 |
 | Frontend | Next.js 15 App Router + React 19 (Catalyst AppSail) | $0 |
-| AI orchestration | LangGraph orchestrator + Planner/Reasoning/Reporter agents | $0 |
+| AI orchestration | Runner protocol with Strands agents + Planner/Reasoning/Reporter agents | $0 |
 | Deterministic engines | SQL, Search/Ranking, Graph, Pattern, Profiling, Financial, Forecasting, Timeline, Evidence | $0 |
 | Internal tools | Typed T01–T23 registry; engines are not LLM agents | $0 || Workflows | Catalyst Circuits | $0 |
 | Events | Catalyst Signals | $0 |
@@ -333,7 +335,7 @@ The initial target is 50K FIRs, 200K entities/vectors, and 500K relationships, s
 |------|-------|-----------|
 | 1 | Foundation | Catalyst project, schema, synthetic data (10K FIRs), Auth, Neo4j up |
 | 2 | Retrieval | 4-way hybrid retriever working (SQL+Vector+Graph+BM25→RRF→Rerank) |
-| 3 | Orchestration | LangGraph fast/deep router + Planner/Reasoner/Reporter + typed registry |
+| 3 | Orchestration | InvestigationService fast/deep router + Runner/Strands agents + Planner/Reasoner/Reporter + typed registry |
 | 4 | Intelligence | Deterministic SQL, Graph, Pattern, Profiling, Financial, Forecast, Timeline, Search, Evidence engines |
 | 5 | Workspace | React workspace: 6 panels, chat streaming, graph viz, timeline |
 | 6 | Multilingual + Governance | IndicTrans2, voice demo, audit log, RBAC, explainability |
@@ -368,7 +370,7 @@ These decisions are FINAL:
 6. ✅ pgvector HNSW (co-located vector search)
 7. ✅ Faster-Whisper + Piper (CPU voice, demo-ready)
 8. ✅ IndicTrans2 ONNX (best Kannada translation)
-9. ✅ LangGraph orchestrator + Planner/Reasoner/Reporter + 23-tool typed registry + deterministic engines
+9. ✅ Runner protocol with Strands agents + Planner/Reasoner/Reporter + 23-tool typed registry + deterministic engines
 10. ✅ Next.js 15 App Router + React 19 on Catalyst AppSail with Feature-Sliced Design (7-panel investigation workspace)
 11. ✅ Pre-computed intelligence (Cron + Signals; direct lookup target, measured during validation)
 12. ✅ Tamper-evident audit log (hash-chained; legal admissibility requires separate review)

@@ -85,13 +85,21 @@ Production agents are reusable Strands implementations:
 - **Reasoner** — grounded synthesis over validated results.
 - **Reporter** — evidence-backed wording and reports.
 
-Each agent receives and returns `InvestigationState`. Agents never orchestrate, schedule, call other agents, depend on Catalyst/Hexel, or own persistence.
+The Runner receives and returns `InvestigationState`. Each agent receives one `AgentContext`, reads `context.state`, and returns the updated `InvestigationState`. Agents never orchestrate, schedule, call other agents, depend on Catalyst/Hexel, or own persistence.
 
 ```python
-async def run(state: InvestigationState) -> InvestigationState: ...
+@dataclass(frozen=True)
+class AgentContext:
+    state: InvestigationState
+    auth_context: dict[str, object]
+    registry: object
+    llm: object
+    logger: object
+
+async def run(context: AgentContext) -> InvestigationState: ...
 ```
 
-The temporary LocalRunner invokes these agents in the minimal agreed sequence. Hexel will own the production fleet execution later.
+`registry` and `llm` are typed application boundaries; they are not database clients, Neo4j drivers, HTTP clients, or provider SDKs. The temporary LocalRunner invokes these agents in the minimal agreed sequence. Hexel will own the production fleet execution later.
 
 ### Infrastructure integrations
 
@@ -137,7 +145,7 @@ The P08 fast path remains completely outside the Runner. Exact FIR lookups, coun
 
 ## Migration constraints
 
-- No LangGraph, CrewAI, or locally built orchestration framework is introduced.
+- No external graph/orchestration framework is introduced.
 - No Hexel SDK dependency is introduced while Hexel is unavailable.
 - No separate AI Gateway, Tool Gateway, policy engine, event platform, plugin platform, or MCP server is built by KSP.
 - The temporary runner only invokes agents, passes `InvestigationState`, and returns the final state.

@@ -53,7 +53,7 @@ The locked documents contain both an older `functions/` layout and an `src/` orc
 - `client/` is the Next.js 15 App Router + React 19 + TypeScript frontend on Catalyst AppSail, organized with Feature-Sliced Design under `client/src/`.
 - `appsail/neo4j/` contains the Neo4j container and schema/projection assets.
 - `data/` contains synthetic generators, seeds, and explicitly non-sensitive fixtures.
-- `.LOCK/` remains source documentation only; it is not modified by implementation phases.
+- `.LOCK/` remains authoritative architecture/domain documentation. Its non-private Markdown may be updated only by an explicitly authorized architecture amendment; implementation phases must not change it implicitly. `.LOCK/TODO.md` and ignored session files remain untouched.
 
 ## 2. State Machine
 
@@ -93,7 +93,7 @@ A phase may not be started if a dependency is not `COMPLETE`. If validation fail
 
 Before changing a phase to `COMPLETE`, verify and record:
 
-1. **Locked alignment:** `.LOCK/DECISIONS.md`, `.LOCK/architecture.md`, `.LOCK/ai-architecture.md`, and `.LOCK/AGENTS.md` remain authoritative and unchanged.
+1. **Locked alignment:** `.LOCK/DECISIONS.md`, `.LOCK/architecture.md`, `.LOCK/ai-architecture.md`, and `.LOCK/AGENTS.md` remain authoritative; any explicitly authorized runtime amendment is recorded consistently across the non-private source documents.
 2. **Schema alignment:** implementation matches `.LOCK/database-schema.md` tables, field semantics, status values, relationships, provenance, card metadata, and audit requirements; logical Catalyst incompatibilities are isolated and documented.
 3. **Ontology/workflow alignment:** entity and relationship vocabulary follows `.LOCK/ontology.md` and `.LOCK/crime-domain.md`; flow follows `.LOCK/investigation-workflow.md` and `.LOCK/investigation-engine.md`.
 4. **Workspace/card alignment:** persistent state and seven panels follow `.LOCK/investigation-workspace.md`; card payloads, lifecycle, freshness, provenance, confidence, and human-review markers follow `.LOCK/intelligence-cards.md`.
@@ -250,10 +250,10 @@ Before changing a phase to `COMPLETE`, verify and record:
 - **Status:** `PLANNED`
 - **Dependencies:** `P06`, `P08`, `P09`, `P10`
 - **Owner scope:** minimal LocalRunner interface and reusable Strands agents; Hexel is the future runtime owner
-- **Tasks:** define a small `Runner.run(state) -> state` interface; implement `LocalRunner` that invokes agents and passes `InvestigationState`; define the future Hexel adapter boundary; implement Planner, Evidence, Graph Intelligence, Pattern Intelligence, Financial Intelligence, Timeline, Reasoner, and Reporter agent interfaces using Strands; keep agent business logic outside the runner; preserve existing registry, adapter, evidence, and engine boundaries.
+- **Tasks:** define a small `Runner.run(state: InvestigationState) -> InvestigationState` interface; implement `LocalRunner` that invokes agents and passes updated state; define the future Hexel adapter boundary; define one `AgentContext` containing `state`, `auth_context`, `registry`, `llm`, and `logger`; implement Planner, Evidence, Graph Intelligence, Pattern Intelligence, Financial Intelligence, Timeline, Reasoner, and Reporter agent interfaces using Strands; keep agent business logic outside the runner; preserve existing registry, adapter, evidence, and engine boundaries.
 - **Files:** `docs/orchestration-architecture.md`, `src/orchestration/runner.py`, `src/orchestration/local_runner.py`, `src/orchestration/hexel_runner.py`, `src/orchestration/state.py`, `src/agents/`, `tests/unit/orchestration/`, `tests/integration/orchestration/`.
-- **Acceptance criteria:** LocalRunner only invokes agents, passes shared state, and returns final state; it does not schedule, retry, persist, stream, distribute, or implement workflow graphs; agents expose `run(state) -> state`, do not orchestrate other agents, do not access Catalyst/Neo4j/providers directly, and require no Hexel dependency; replacing LocalRunner with Hexel integration does not change agents, tools, APIs, domain models, or frontend.
-- **Review gate:** confirm KSP is not recreating Hexel, LangGraph, CrewAI, an AI Gateway, a Tool Gateway, a policy platform, a workflow engine, or a skill platform; confirm Catalyst remains infrastructure and Neo4j remains a projection/query store; confirm no T01–T23 or business-domain redesign.
+- **Acceptance criteria:** LocalRunner only invokes agents, passes shared state, and returns final state; it does not schedule, retry, persist, stream, distribute, or implement workflow graphs; each agent accepts `AgentContext` and returns updated `InvestigationState`, does not orchestrate other agents, does not access Catalyst/Neo4j/providers directly, and requires no Hexel dependency; replacing LocalRunner with Hexel integration does not change agents, tools, APIs, domain models, or frontend.
+- **Review gate:** confirm KSP is not recreating Hexel capabilities, an external graph/orchestration framework, gateway/platform services, a policy platform, a workflow engine, or a skill platform; confirm Catalyst remains infrastructure and Neo4j remains a projection/query store; confirm no T01–T23 or business-domain redesign.
 - **Validation:** fake-agent LocalRunner sequential state-passing test; agent interface tests; runner substitution contract test without Hexel; no-direct-database/provider imports; regression tests for P08 fast path.
 - **Evidence:** record state trace, agent invocation order, final state, substitution contract, and no-platform-rebuild assertions.
 
@@ -443,9 +443,10 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Status:** `COMPLETE`
 - **Date:** 2026-07-26
 - **Decision:** Hexel Studio owns the production agent platform. Until it is available, KSP implements only a minimal `Runner`/`LocalRunner` that invokes Strands agents, passes `InvestigationState`, and returns the final state. KSP will not recreate orchestration, gateways, skills, policies, MCP, memory, observability, or platform governance.
-- **Implementation evidence:** Replaced the prior platform-like Fleet Runtime addendum with the temporary runner architecture in `docs/orchestration-architecture.md`; made `InvestigationService → Runner (Protocol) → LocalRunner/HexelRunner` explicit; standardized the minimal AgentContext contract; documented P08 fast-path bypass; updated README wording and P10/P12/P13/P16/constraint/review sections in this phase plan. P12 now covers only the Runner and Strands agents; P13 covers deterministic engines and agent business capabilities.
-- **Preserved contracts:** Domain models, database/schema mapping, ontology, T01–T23 registry, deterministic engines, Catalyst authority, Neo4j projection role, REST/SSE protocols, frontend requirements, and P08 fast path/evidence gate are unchanged. The protected PRD remains unchanged.
-- **Review evidence:** No LangGraph, CrewAI, Hexel, or new platform runtime dependency/import exists in Python source; no separate gateway/platform folders were added; existing registry and LLM adapters remain the integration boundaries; P08 is independent of any Runner; private-file checks and regression tests pass.
+- **Implementation evidence:** Replaced the prior platform-like runtime addendum with the temporary Runner architecture in `docs/orchestration-architecture.md`; made `InvestigationService → Runner (Protocol) → LocalRunner/HexelRunner` explicit; standardized the minimal AgentContext contract; documented P08 fast-path bypass; updated README wording and P10/P12/P13/P16/constraint/review sections in this phase plan. P12 now covers only the Runner and Strands agents; P13 covers deterministic engines and agent business capabilities.
+- **Source-of-truth migration evidence:** By explicit user authorization recorded in `transcript.md`, the non-private runtime sections of `.LOCK/architecture.md`, `.LOCK/ai-architecture.md`, `.LOCK/AGENTS.md`, `.LOCK/DECISIONS.md`, `.LOCK/investigation-engine.md`, `.LOCK/vision.md`, and `.LOCK/prd.md` were reconciled with the final Runner/Strands strategy. `.LOCK/TODO.md` and `session-ses_0754.md` remain ignored and untouched.
+- **Preserved contracts:** Domain models, database/schema mapping, ontology, T01–T23 registry, deterministic engines, Catalyst authority, Neo4j projection role, REST/SSE protocols, frontend requirements, and P08 fast path/evidence gate are unchanged.
+- **Review evidence:** No external orchestration framework or new platform runtime dependency/import exists in Python source; no separate gateway/platform folders were added; existing registry and LLM adapters remain the integration boundaries; P08 is independent of any Runner; private-file checks and regression tests pass.
 - **Known blockers:** Strands agent implementation and the minimal LocalRunner are planned for P12; real Hexel integration is future work. P09 remains the next implementation phase.
 
 ### Review records: P09–P20

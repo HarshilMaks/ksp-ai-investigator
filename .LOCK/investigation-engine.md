@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # The Investigation Engine Core
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -13,7 +14,7 @@
 
 ### Catalyst-compatible checkpoint adapter
 
-Investigation state survives across sessions through a Catalyst-compatible LangGraph checkpoint adapter backed by Catalyst Data Store, with Catalyst Cache for hot session state. This adapter is the locked deployment direction and must be validated against Catalyst APIs.
+Investigation state survives across sessions through a Catalyst-compatible investigation-service checkpoint adapter backed by Catalyst Data Store, with Catalyst Cache for hot session state. This adapter is the locked deployment direction and must be validated against Catalyst APIs.
 
 ```python
 class CatalystCheckpointAdapter:
@@ -26,10 +27,10 @@ class CatalystCheckpointAdapter:
         ...
 
 checkpointer = CatalystCheckpointAdapter()
-app = investigation_graph.compile(checkpointer=checkpointer)
+# P09 investigation service uses this boundary; the Runner does not own persistence.
 ```
 
-For local development only, LangGraph's PostgreSQL saver can serve as a reference implementation. It is not a locked deployment dependency; any use requires Catalyst compatibility validation before promotion.
+For local development, P09 provides a local checkpoint adapter with the same application contract. A PostgreSQL saver is not a deployment dependency.
 
 ### Session Continuity
 
@@ -58,7 +59,7 @@ async def resume_investigation(officer_id: str, investigation_id: str):
 
 ## Orchestrated investigation flow
 
-The Investigation Orchestrator is a LangGraph state machine, not an LLM agent. It restores case memory, classifies the request, and selects:
+The InvestigationService routes requests through the Runner when an agent workflow is required; it is not an LLM agent. It restores case memory, classifies the request, and selects:
 
 - **Fast path:** exact/structured query → deterministic SQL Retrieval, Search/Ranking, Graph Intelligence, or Timeline Engine → Evidence/Explainability gate → cited response; no LLM when unnecessary.
 - **Deep path:** optional Planner Agent → parallel deterministic engines (SQL, search, graph, pattern, behavioral, financial, forecasting, timeline) → evidence reconciliation/gate → Reasoning Agent → deterministic Lead Ranking Engine → Reporter Agent for communication or package wording.
@@ -534,7 +535,7 @@ class ActionRecommender:
 │                  Investigation Engine                         │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  Officer Query ──► LangGraph State Machine                   │
+│  Officer Query ──► Investigation Service and Runner                   │
 │                         │                                    │
 │                    ┌────┴────┐                               │
 │                    ▼         ▼                               │

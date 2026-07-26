@@ -1,3 +1,4 @@
+<!-- Runtime amendment: Hexel owns platform orchestration; KSP owns investigation intelligence. The temporary Runner only passes InvestigationState through Strands agents. -->
 # InvestigateAI — Product Vision
 > Status: DERIVED FROM LOCKED DECISIONS
 > Decision baseline: DECISIONS.md (2026-07-23)
@@ -23,12 +24,12 @@ Karnataka State Police operates **1100+ police stations** across 31 districts. T
 
 ## The Solution
 
-**InvestigateAI is NOT a chatbot.** It is an **AI Investigation Copilot** powered by a LangGraph investigation orchestrator with reasoning stages and deterministic engines.
+**InvestigateAI is NOT a chatbot.** It is an **AI Investigation Copilot** powered by an InvestigationService, temporary Runner, reusable Strands agents, reasoning stages, and deterministic engines.
 
 ```text
 User Layer: Chat + Voice + Investigation Cards
                   ↕ REST/SSE
-Catalyst Gateway → LangGraph Investigation Orchestrator
+Catalyst Gateway → Investigation Service with Runner protocol
                   ├─ Fast path: deterministic engine → evidence gate → response
                   └─ Deep path: Planner? → parallel engines → Reasoner →
                                Lead Ranking Engine → Reporter
