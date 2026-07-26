@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P06`
+> Current phase: `P08`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -31,10 +31,11 @@ Humans review consequential conclusions.
 - Backend implementation language is Python; do not add a second backend language.
 - Catalyst Data Store is authoritative for structured and vector records; Neo4j 5 Community on AppSail is a graph projection/query store.
 - The raw PostgreSQL DDL in `.LOCK/database-schema.md` is a logical reference until Catalyst compatibility is validated; do not treat it as deployable Catalyst DDL without validation evidence.
-- LangGraph is a deterministic state-machine orchestrator, not an LLM agent.
+- Hexel Studio owns production agent runtime and orchestration. Until it is available, `LocalRunner` is temporary infrastructure that only invokes agents, passes `InvestigationState`, and returns results; it must not become a local orchestration platform.
 - Only Planner, Reasoner, and Reporter are LLM-powered reasoning stages.
 - Agents/reasoning stages never access databases directly; all access goes through authorized typed T01–T23 tools and deterministic engines.
 - Facts, counts, paths, scores, dates, totals, and forecasts come from deterministic engines. LLM output is grounded communication or structured reasoning over validated results.
+- Every proposed feature must answer: **is this investigation intelligence or infrastructure?** Build investigation intelligence; integrate with Catalyst/Hexel infrastructure instead of rebuilding it.
 - Evidence/Explainability is a mandatory release gate for every response and package.
 - No literal private chain-of-thought is exposed or persisted; store structured rationale, provenance, citations, uncertainty, and audit metadata.
 - Initial data is synthetic only. Do not ingest real police, PII, or sensitive operational data.
@@ -186,7 +187,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P07 — Deterministic SQL and hybrid search engines
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P04`, `P06`, `P03`
 - **Owner scope:** T01/T02/T13 and retrieval primitives
 - **Tasks:** implement permission-aware structured FIR retrieval; local vector adapter contract for 1024-d embeddings; keyword/BM25-compatible retrieval boundary; RRF `k=60`; candidate reranking boundary; citation annotations.
@@ -198,7 +199,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P08 — Fast-path execution and evidence gate
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P06`, `P07`
 - **Owner scope:** fast routing, T20 evidence/explainability, cited responses
 - **Tasks:** classify exact/structured low-risk requests; execute one deterministic engine; validate claims, numbers, permissions, citations, contradictions, uncertainty, and audit metadata; return synchronous cited response.
@@ -225,9 +226,9 @@ Before changing a phase to `COMPLETE`, verify and record:
 - **Status:** `PLANNED`
 - **Dependencies:** `P08`, `P09`, `P06`
 - **Owner scope:** Python API/BFF adapters and stream protocol
-- **Tasks:** implement investigation run lifecycle, capability routes, resource routes, SSE event schema, cookie/bearer auth handling, multipart upload boundary, standardized errors, and request audit context.
+- **Tasks:** implement investigation run lifecycle, capability routes, resource routes, SSE event schema, cookie/bearer auth handling, multipart upload boundary, standardized errors, and request audit context; communicate with the investigation service and Runner protocol without depending on LocalRunner or HexelRunner.
 - **Files:** `functions/api/investigation_runs.py`, `functions/api/capability_api.py`, `functions/api/resource_api.py`, `functions/api/sse_api.py`, `functions/api/upload_api.py`, `src/api/`, `tests/integration/api/`.
-- **Acceptance criteria:** complex runs are created by REST and streamed by SSE; simple lookups may return synchronously; event types include plan/tool/evidence/token/citation/error/done as applicable; tools are never public routes.
+- **Acceptance criteria:** complex runs are created by REST and streamed by SSE; simple lookups may return synchronously through the P08 fast path; event types include plan/tool/evidence/token/citation/error/done as applicable; tools are never public routes; API code depends on the Runner protocol rather than LocalRunner or HexelRunner.
 - **Review gate:** verify path versioning `/api/v1`, API timeout target `30s`, SSE authentication behavior, CORS boundary, and no native EventSource Authorization-header assumption.
 - **Validation:** local API smoke test; SSE event-contract test; multipart rejection/size-limit tests.
 - **Evidence:** record HTTP/SSE output and test results.
@@ -244,29 +245,29 @@ Before changing a phase to `COMPLETE`, verify and record:
 - **Validation:** `uv` is used for backend checks; frontend Node checks are run from `client/` using the pinned package-manager workflow; typecheck/lint/build; browser smoke test or documented headless alternative; state synchronization tests.
 - **Evidence:** record build and test output, not visual claims without a runnable check.
 
-### P12 — Deep-path orchestrator and reasoning stages
+### P12 — Temporary Runner and Strands agent fleet
 
 - **Status:** `PLANNED`
 - **Dependencies:** `P06`, `P08`, `P09`, `P10`
-- **Owner scope:** LangGraph state machine, Planner/Reasoner/Reporter boundaries
-- **Tasks:** implement `InvestigationState`; deterministic route; optional validated Planner; bounded parallel engine fan-out/fan-in; reconciliation; Reasoner and Reporter LiteLLM interfaces; checkpoints; SSE progress; graceful degradation.
-- **Files:** `src/orchestration/orchestrator.py`, `src/orchestration/planner_stage.py`, `src/orchestration/reasoner_stage.py`, `src/orchestration/reporter_stage.py`, `src/orchestration/reconciliation.py`, `tests/unit/orchestration/`, `tests/integration/orchestration/`.
-- **Acceptance criteria:** deep queries follow Planner → engines → gate/reconciliation → Reasoner → deterministic lead ranking → optional Reporter; planner cannot emit unrestricted queries; engine calls are bounded and parallel only when independent; LLM provider is selected through LiteLLM fallback chain.
-- **Review gate:** confirm orchestrator is not an agent; only three LLM stages exist; evidence gate runs before release; actual concurrency/latency is measured rather than claimed.
-- **Validation:** fake-provider orchestration tests; failure/degradation tests; checkpoint/resume; SSE event sequence assertions.
-- **Evidence:** record trace output, provider fallback tests, and no-LLM fast-path test.
+- **Owner scope:** minimal LocalRunner interface and reusable Strands agents; Hexel is the future runtime owner
+- **Tasks:** define a small `Runner.run(state) -> state` interface; implement `LocalRunner` that invokes agents and passes `InvestigationState`; define the future Hexel adapter boundary; implement Planner, Evidence, Graph Intelligence, Pattern Intelligence, Financial Intelligence, Timeline, Reasoner, and Reporter agent interfaces using Strands; keep agent business logic outside the runner; preserve existing registry, adapter, evidence, and engine boundaries.
+- **Files:** `docs/orchestration-architecture.md`, `src/orchestration/runner.py`, `src/orchestration/local_runner.py`, `src/orchestration/hexel_runner.py`, `src/orchestration/state.py`, `src/agents/`, `tests/unit/orchestration/`, `tests/integration/orchestration/`.
+- **Acceptance criteria:** LocalRunner only invokes agents, passes shared state, and returns final state; it does not schedule, retry, persist, stream, distribute, or implement workflow graphs; agents expose `run(state) -> state`, do not orchestrate other agents, do not access Catalyst/Neo4j/providers directly, and require no Hexel dependency; replacing LocalRunner with Hexel integration does not change agents, tools, APIs, domain models, or frontend.
+- **Review gate:** confirm KSP is not recreating Hexel, LangGraph, CrewAI, an AI Gateway, a Tool Gateway, a policy platform, a workflow engine, or a skill platform; confirm Catalyst remains infrastructure and Neo4j remains a projection/query store; confirm no T01–T23 or business-domain redesign.
+- **Validation:** fake-agent LocalRunner sequential state-passing test; agent interface tests; runner substitution contract test without Hexel; no-direct-database/provider imports; regression tests for P08 fast path.
+- **Evidence:** record state trace, agent invocation order, final state, substitution contract, and no-platform-rebuild assertions.
 
-### P13 — Remaining deterministic intelligence engines
+### P13 — Deterministic intelligence engines and agent business capabilities
 
 - **Status:** `PLANNED`
 - **Dependencies:** `P05`, `P07`, `P12`
-- **Owner scope:** graph, pattern, behavioral, financial, forecasting, timeline, lead ranking
-- **Tasks:** implement bounded graph traversal/community/centrality/path tools; MO and temporal pattern analysis; behavioral profile features; financial flow/layering indicators; hotspot/forecast signals with uncertainty; timeline reconstruction; deterministic lead ranking.
-- **Files:** `src/engines/graph_intelligence.py`, `pattern_analysis.py`, `behavioral_profiling.py`, `financial_analysis.py`, `forecasting.py`, `timeline.py`, `lead_ranking.py`, `tests/unit/engines/`.
-- **Acceptance criteria:** each engine returns typed facts/signals with source evidence, parameters, computation metadata, and uncertainty; no engine declares guilt, legal sufficiency, or guaranteed future conduct; lead ranking is deterministic and review-oriented.
-- **Review gate:** compare outputs to domain/workflow/engine docs; verify no LLM computes totals, paths, dates, scores, or forecasts; validate bounded depth/hops/candidate counts.
-- **Validation:** synthetic scenario fixtures; deterministic repeatability; edge cases for empty/contradictory/partial data.
-- **Evidence:** record test output and sample provenance packages.
+- **Owner scope:** graph, pattern, behavioral, financial, forecasting, timeline, lead-ranking engines and their Strands agent business logic
+- **Tasks:** implement bounded graph traversal/community/centrality/path tools; MO and temporal pattern analysis; behavioral profile features; financial flow/layering indicators; hotspot/forecast signals with uncertainty; timeline reconstruction; deterministic lead ranking; connect the corresponding Strands agents to validated engine/tool outputs without creating a local skill/orchestration platform.
+- **Files:** `src/engines/graph_intelligence.py`, `pattern_analysis.py`, `behavioral_profiling.py`, `financial_analysis.py`, `forecasting.py`, `timeline.py`, `lead_ranking.py`, `src/agents/`, `tests/unit/engines/`, `tests/unit/agents/`.
+- **Acceptance criteria:** each engine returns typed facts/signals with source evidence, parameters, computation metadata, and uncertainty; agents only interpret validated results; no engine or agent declares guilt, legal sufficiency, or guaranteed future conduct; lead ranking is deterministic and review-oriented.
+- **Review gate:** compare outputs to domain/workflow/engine docs; verify no LLM computes totals, paths, dates, scores, or forecasts; validate bounded depth/hops/candidate counts and no platform recreation.
+- **Validation:** synthetic scenario fixtures; deterministic repeatability; agent contract tests; edge cases for empty/contradictory/partial data.
+- **Evidence:** record engine outputs, agent state traces, and sample provenance packages.
 
 ### P14 — Intelligence card materialization and lifecycle
 
@@ -296,8 +297,8 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 - **Status:** `PLANNED`
 - **Dependencies:** `P03`, `P06`, `P09`, `P10`, `P15`
-- **Owner scope:** authorization, scope filtering, PII masking, hash-chain audit
-- **Tasks:** implement SHO/IO/DCP/Analyst/SP policies; station/district/case scope; analyst masking; permission checks before each tool and card; SHA-512/hash-chain audit records; audit verification; secure export classification.
+- **Owner scope:** application authorization integration, Catalyst/Hexel policy integration, scope filtering, PII masking, hash-chain audit
+- **Tasks:** integrate SHO/IO/DCP/Analyst/SP policies without rebuilding a policy platform; enforce station/district/case scope; analyst masking; permission checks before tools, agents, cards, alerts, exports, and reports; SHA-512/hash-chain audit records; audit verification; secure export classification.
 - **Files:** `src/shared/auth.py`, `src/shared/permissions.py`, `src/shared/masking.py`, `src/services/audit.py`, `functions/signals/audit_logger.py`, `tests/unit/security/`, `tests/integration/security/`.
 - **Acceptance criteria:** role matrix is enforced on reads, mutations, cards, alerts, exports, and reports; cross-scope PII is masked; audit entries are tamper-evident and verifiable; consequential outputs contain human-review qualification.
 - **Review gate:** compare exactly to architecture/ontology RBAC and audit rules; verify secrets, logs, error responses, and exports do not leak PII; do not claim legal admissibility.
@@ -417,7 +418,37 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Review-gate evidence:** Exactly T01–T23 are registered; extra fields and invalid enum/range values are rejected; cross-field required subjects are validated; T15 is deterministic `lead_ranking`; T20 is `evidence_explainability`; T22 is `investigation_state` with `ADD_EVIDENCE`; unknown tools, unauthorized calls, public direct routes, over-budget calls, missing handlers, and invalid handler outputs fail closed; planner/tool parameters contain no unrestricted SQL/Cypher execution path; output contracts preserve citations and warnings.
 - **Known blockers:** Registry handlers are injected boundaries only; deterministic retrieval/analysis engines and orchestration are intentionally deferred to P07–P13. No public API route or external service integration was added.
 
-### Review records: P07–P20
+### Review record: P07 — Deterministic SQL and hybrid search engines
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T12:26:46Z
+- **Completed:** 2026-07-26T12:28:37Z
+- **Implementation evidence:** Added allowlisted structured FIR retrieval in `src/engines/sql_retrieval.py`; deterministic 1024-dimensional local embedding boundary in `src/shared/embedding.py`; shared retrieval contracts under `src/engines/retrieval/`; local vector index and explicit external-vector degradation in `src/engines/retrieval/vector.py`; BM25-compatible lexical scoring, RRF fusion with `k=60`, deterministic reranking, candidate limits, metadata filters, and citations in `src/engines/search_ranking.py`; and retrieval unit tests.
+- **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **53 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; targeted P07 tests ran 7 tests with `OK`; `p07_phase_boundary_contracts: passed`; `git diff --check` passed; private-file ignore checks passed.
+- **Review-gate evidence:** Structured filters support exact FIR fields, status/priority/category/district/year, timezone-aware date ranges, ordering, field projection, counts, bounded limits, and FIR citations without an LLM; lexical/vector/hybrid results preserve source IDs, ranks, scores, and citations; RRF is fixed at `60`; candidate and vector limits are bounded at `100`; external vector failure explicitly returns local deterministic results with `VECTOR_BACKEND_UNAVAILABLE`; no raw SQL parser, unrestricted query, or provider call was added.
+- **Known blockers:** Catalyst/ZCQL and pgvector capability compatibility remain unvalidated; the local deterministic embedding is an offline fallback and not a measured replacement for the configured BGE-M3 model. Evidence gate and fast-path release validation are intentionally deferred to P08.
+
+### Review record: P08 — Fast-path execution and evidence gate
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T12:30:48Z
+- **Completed:** 2026-07-26T12:32:21Z
+- **Implementation evidence:** Added structured evidence contracts in `src/domain/evidence.py`; mandatory citation, numeric-consistency, permission, contradiction, uncertainty, and audit validation in `src/engines/evidence.py`; deterministic fast/deep classification in `src/orchestration/router.py`; synchronous cited execution in `src/orchestration/fast_path.py`; and unit tests for routing, release blocking, contradiction handling, and audit metadata.
+- **Validation evidence:** `uv run python -m unittest discover -s tests -p 'test_*.py' -v` ran **61 tests with `OK`**; `uv run python -m compileall -q src functions data tests` passed; targeted P08 tests ran 8 tests with `OK`; `p08_phase_boundary_contracts: passed`; `git diff --check` passed; private-file ignore checks passed.
+- **Review-gate evidence:** Fast path allows only T01/T02/T03/T06/T13/T14 deterministic tools; natural-language intent and reasoning tools route away from fast execution; released records require citations and source claims; inconsistent totals are blocked; contradictions are surfaced and block release; authorization remains enforced by the registry; audit metadata and deterministic uncertainty are attached; no LLM, private chain-of-thought, public tool route, or unrestricted query path was added.
+- **Known blockers:** Fast path is currently an internal Python service boundary; REST/SSE exposure and persistent investigation state are intentionally deferred to P09–P10. The evidence gate validates structured tool outputs and does not claim legal sufficiency.
+
+### Architecture migration record — temporary runtime strategy (pre-P09)
+
+- **Status:** `COMPLETE`
+- **Date:** 2026-07-26
+- **Decision:** Hexel Studio owns the production agent platform. Until it is available, KSP implements only a minimal `Runner`/`LocalRunner` that invokes Strands agents, passes `InvestigationState`, and returns the final state. KSP will not recreate orchestration, gateways, skills, policies, MCP, memory, observability, or platform governance.
+- **Implementation evidence:** Replaced the prior platform-like Fleet Runtime addendum with the temporary runner architecture in `docs/orchestration-architecture.md`; made `InvestigationService → Runner (Protocol) → LocalRunner/HexelRunner` explicit; standardized the minimal AgentContext contract; documented P08 fast-path bypass; updated README wording and P10/P12/P13/P16/constraint/review sections in this phase plan. P12 now covers only the Runner and Strands agents; P13 covers deterministic engines and agent business capabilities.
+- **Preserved contracts:** Domain models, database/schema mapping, ontology, T01–T23 registry, deterministic engines, Catalyst authority, Neo4j projection role, REST/SSE protocols, frontend requirements, and P08 fast path/evidence gate are unchanged. The protected PRD remains unchanged.
+- **Review evidence:** No LangGraph, CrewAI, Hexel, or new platform runtime dependency/import exists in Python source; no separate gateway/platform folders were added; existing registry and LLM adapters remain the integration boundaries; P08 is independent of any Runner; private-file checks and regression tests pass.
+- **Known blockers:** Strands agent implementation and the minimal LocalRunner are planned for P12; real Hexel integration is future work. P09 remains the next implementation phase.
+
+### Review records: P09–P20
 
 - **Status:** `PLANNED`
 - **Evidence:** not started

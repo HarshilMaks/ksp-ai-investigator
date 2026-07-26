@@ -30,7 +30,7 @@ The frontend communicates only through the locked external boundary:
 - JWT/Catalyst Authentication, with authorization enforced by the backend
 - Multipart REST for voice/audio and document uploads where enabled
 
-The Next.js application is deployed on Catalyst AppSail. This changes the frontend hosting/runtime only; Catalyst Functions, the LangGraph orchestrator, deterministic engines, Data Store, pgvector, Neo4j, Stratus, Cache, Signals, Cron, and Circuits remain unchanged.
+The Next.js application is deployed on Catalyst AppSail. This changes the frontend hosting/runtime only; Catalyst Functions, the Fleet Runtime, deterministic engines, Data Store, pgvector, Neo4j, Stratus, Cache, Signals, Cron, and Circuits remain unchanged.
 
 ## Feature-Sliced Design
 

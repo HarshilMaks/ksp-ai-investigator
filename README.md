@@ -8,7 +8,7 @@ It is investigation-first rather than chat-first:
 Investigation → evidence → updated investigation → next action
 ```
 
-The implementation follows the locked architecture in `.LOCK/`. Deterministic engines compute facts, the LangGraph orchestrator controls execution, allowed reasoning stages explain validated evidence, and officers review consequential conclusions.
+The implementation follows the locked domain architecture and the temporary runtime addendum in [`docs/orchestration-architecture.md`](docs/orchestration-architecture.md). Deterministic engines compute facts, the temporary LocalRunner invokes business agents, Hexel is the future platform runtime, and officers review consequential conclusions.
 
 ## Repository baseline
 
