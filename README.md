@@ -22,9 +22,9 @@ The implementation follows the locked domain architecture and the temporary runt
 
 ## Current implementation state
 
-Phases `P01`–`P16` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search and intelligence engines, the P08 evidence-gated fast path, P09 persistent investigation state/checkpointing, P10 versioned REST/SSE/multipart API boundaries, the P11 Next.js investigation workspace shell, P12 portable Runner/agent contracts, P14 typed intelligence-card materialization/lifecycle storage, P15 idempotent signals/entity resolution/scoped alerts, and P16 RBAC/masking/hash-chain audit governance.
+Phases `P01`–`P17` are complete. The repository now contains the Python domain contracts, synthetic fixtures, local/Catalyst adapter boundaries, Neo4j projection contract, typed T01–T23 registry, deterministic retrieval/search and intelligence engines, the P08 evidence-gated fast path, P09 persistent investigation state/checkpointing, P10 versioned REST/SSE/multipart API boundaries, the P11 Next.js investigation workspace shell, P12 portable Runner/agent contracts, P14 typed intelligence-card materialization/lifecycle storage, P15 idempotent signals/entity resolution/scoped alerts, P16 RBAC/masking/hash-chain audit governance, and P17 optional multilingual/voice/OCR/report boundaries.
 
-`P17` — multilingual, voice, document, and report boundaries — is next. External Catalyst/Hexel policy remains an integration boundary; application authorization fails closed before sensitive operations, and consequential outputs remain human-review qualified.
+`P18` — ten scenario integration suite and demo wiring — is next. P17 media features fail safely without local model assets; reports require citations, classification, authorization, and human-review language; and P10 upload limits remain unchanged.
 
 ## Safety and scope
 

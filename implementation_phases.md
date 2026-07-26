@@ -5,7 +5,7 @@
 > Knowledge base: `.LOCK/*.md`, ingested in the user-mandated order
 > Plan version: 1.0.0
 > Last reviewed: 2026-07-24
-> Current phase: `P16`
+> Current phase: `P17`
 > Current state: `COMPLETE`
 
 ## 1. Operating Contract
@@ -307,7 +307,7 @@ Before changing a phase to `COMPLETE`, verify and record:
 
 ### P17 — Multilingual, voice, document, and report boundaries
 
-- **Status:** `PLANNED`
+- **Status:** `COMPLETE`
 - **Dependencies:** `P10`, `P12`, `P14`, `P16`
 - **Owner scope:** IndicTrans2, Faster-Whisper, Piper/Edge TTS, Tesseract, report output
 - **Tasks:** add optional model adapters; multipart upload validation; Kannada/English translation preserving entities; OCR pipeline; report generation from evidence-gated package; fallback/pre-recorded demo assets.
@@ -518,6 +518,16 @@ This section is updated only after concrete work and validation. Do not mark a p
 - **Validation evidence:** Focused P16 governance suite ran **3 tests with `OK`**; full repository discovery ran **98 tests with `OK`**; role/scope fail-closed checks, Analyst masking, secret-safe audit details, hash-chain verification, tamper detection, and human-review defaults were exercised; `uv run python -m compileall -q src functions data tests` and `git diff --check` passed.
 - **Review-gate evidence:** Application checks cover reads, mutations, tools, agents, cards, alerts, exports, and reports through one operation matrix; investigation/station/district scope mismatches fail closed; Analyst output masks PII while preserving non-sensitive structure; audit details redact secrets before storage; each record chains to the previous SHA-512 digest and tampering invalidates verification; consequential records default to human review. Catalyst/Hexel policy is adapted at the boundary and not rebuilt locally.
 - **Known blockers:** Live Catalyst Auth/Hexel policy integration, production audit persistence, external secret scanners, secure export transport, and deployment security validation remain environment work. P17 owns multilingual, voice, OCR, and report boundaries.
+
+### Review record: P17 — Multilingual, voice, document, and report boundaries
+
+- **Status:** `COMPLETE`
+- **Started:** 2026-07-26T15:45:00Z
+- **Completed:** 2026-07-26T15:55:00Z
+- **Implementation evidence:** Added optional local CPU model boundary `src/adapters/onnx/base.py` and exports for IndicTrans2, Faster-Whisper, Piper/Edge-TTS, and Tesseract model names. Added `src/services/voice.py` for Kannada/English translation with proper-noun preservation and voice transcription/synthesis degradation; `src/services/ocr.py` for optional OCR; and `src/services/reports.py` for authorized, classified, citation-qualified report documents. Existing `functions/api/upload_api.py` and P10 `MultipartParser` remain the upload boundary.
+- **Validation evidence:** Focused P17/media/report/upload suite ran **10 tests with `OK`**; full repository discovery ran **102 tests with `OK`**; missing-model fallback, injected local asset loading, proper-noun preservation, report citations/classification/human-review language, cross-scope rejection, and existing multipart security tests passed; compileall and `git diff --check` passed.
+- **Review-gate evidence:** No model asset is downloaded or network-loaded implicitly; absent assets return explicit degraded results; translation supports only English/Kannada and preserves supplied proper nouns; reports require non-empty source IDs/locators, authorized investigation scope, allowed classification, human-review language, and no legal/custody/guilt claims. P10 upload type/framing/size validation remains unchanged.
+- **Known blockers:** Model smoke tests require local assets; live IndicTrans2/Whisper/Piper/Tesseract CPU/memory measurements, Catalyst Stratus report storage, and production upload/auth deployment remain environment validation items. P18 owns scenario wiring.
 
 ### Architecture migration record — temporary runtime strategy (pre-P09)
 
