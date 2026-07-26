@@ -1,6 +1,14 @@
 # P10 API Reference
 
-P10 provides a typed, framework-neutral Python API core under `src/api/` and thin Catalyst delegates under `functions/api/`. The core is ASGI-callable and does not depend on LocalRunner, HexelRunner, a tool gateway, or a provider SDK.
+P10 provides a typed, framework-neutral Python API core under `src/api/` and thin Catalyst delegates under `functions/api/`. The root `main.py` is the deployment composition facade and exports `app`; it wires the local checkpoint/authentication defaults and mounts the core through `create_fastapi_app`. The FastAPI adapter in `src/api/fastapi_app.py` owns explicit `/api/v1` route registration, OpenAPI, REST response transport, and SSE streaming. The core does not depend on LocalRunner, HexelRunner, a tool gateway, or a provider SDK.
+
+## Application entry point
+
+```bash
+uv run uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+`main.create_app(...)` and `main.build_api_application(...)` accept injected application/authentication dependencies. The default local facade uses a fail-closed empty static verifier and local checkpoints under `.local/checkpoints`; deployment code must inject Catalyst Auth and authoritative storage boundaries rather than adding credentials to `main.py`.
 
 ## Authentication
 
@@ -82,4 +90,4 @@ Every response includes `x-request-id`; callers may provide one to correlate an 
 
 ## Deferred deployment validation
 
-The current tests exercise the API core directly and through its ASGI callable. FastAPI/AppSail wiring, Catalyst API Gateway deployment, live Catalyst Auth, and production CORS configuration remain deployment validation items; no live service or performance claim is made by P10.
+The local API core is exercised directly and through both its ASGI callable and the optional FastAPI adapter. Live Catalyst API Gateway/AppSail deployment, Catalyst Auth, production CORS configuration, and production SSE behavior remain deployment validation items; no live service or performance claim is made by P10.

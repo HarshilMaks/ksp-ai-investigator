@@ -8,6 +8,8 @@ secrets/
 
 # Session files (personal conversations — not for public)
 session-*.md
+transcript01.md
+transcript02.md
 
 # Personal task tracking
 .LOCK/TODO.md
@@ -16,6 +18,7 @@ session-*.md
 __pycache__/
 *.py[cod]
 *$py.class
+.local/
 *.so
 .Python
 venv/

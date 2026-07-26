@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI
 
+import main
 from src.api import ApiAuthenticator, ApiApplication, StaticAuthVerifier, create_fastapi_app
 from src.services.checkpoints import LocalCheckpointStore
 from src.services.investigations import InvestigationService
@@ -50,8 +51,22 @@ class FastApiBoundaryTests(unittest.TestCase):
             verifier = StaticAuthVerifier({"token": {"officer_id": str(uuid4()), "role": "IO", "scopes": ["investigation:read", "investigation:write"]}})
             app = create_fastapi_app(ApiApplication(InvestigationService(LocalCheckpointStore(Path(directory))), ApiAuthenticator(verifier)))
             paths = app.openapi()["paths"]
-            self.assertIn("/{path}", paths)
-            self.assertTrue(any(route.path == "/{path:path}" for route in app.routes))
+            self.assertIn("/api/v1/investigations", paths)
+            self.assertIn("/api/v1/investigations/{investigation_id}", paths)
+            self.assertIn("/api/v1/runs/{run_id}/events", paths)
+            self.assertNotIn("/api/v1/{path}", paths)
+            operations = [
+                operation["operationId"]
+                for path_item in paths.values()
+                for operation in path_item.values()
+                if isinstance(operation, dict) and "operationId" in operation
+            ]
+            self.assertEqual(len(operations), len(set(operations)))
+            self.assertTrue(any(route.path == "/api/v1/{path:path}" for route in app.routes))
+
+    def test_root_main_facade_exports_fastapi_application(self) -> None:
+        self.assertIsInstance(main.app, FastAPI)
+        self.assertTrue(any(route.path == "/api/v1/investigations" for route in main.app.routes))
 
 
 if __name__ == "__main__":
